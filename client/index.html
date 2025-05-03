@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>問卷填寫</title>
+</head>
+<body>
+  <h1 id="surveyTitle">問卷標題</h1>
+  <p id="surveyDesc">問卷描述</p>
+
+  <form id="surveyForm"></form>
+
+  <button onclick="submitSurvey()">提交</button>
+
+  <script>
+    let surveyId = ''; // 問卷ID
+    let surveyData = {}; // 問卷完整資料
+
+    // 🔥 1. 取得問卷資料
+    async function loadSurvey() {
+      // 🟡 換成你資料庫裡的問卷ID
+      surveyId = '放你的問卷ID';
+      let res = await fetch(`http://localhost:5000/api/surveys/${surveyId}`);
+      surveyData = await res.json();
+
+      document.getElementById('surveyTitle').innerText = surveyData.title;
+      document.getElementById('surveyDesc').innerText = surveyData.description;
+
+      let form = document.getElementById('surveyForm');
+      form.innerHTML = '';
+
+      // 🔄 2. 動態產生題目
+      surveyData.questions.forEach((q, index) => {
+        let qDiv = document.createElement('div');
+        qDiv.innerHTML = `<p>${index + 1}. ${q.questionText}</p>`;
+
+        if (q.type === 'single') {
+          q.options.forEach(opt => {
+            qDiv.innerHTML += `<label><input type="radio" name="q${index}" value="${opt}"> ${opt}</label><br>`;
+          });
+        } else if (q.type === 'multiple') {
+          q.options.forEach(opt => {
+            qDiv.innerHTML += `<label><input type="checkbox" name="q${index}" value="${opt}"> ${opt}</label><br>`;
+          });
+        } else if (q.type === 'text') {
+          qDiv.innerHTML += `<textarea name="q${index}"></textarea>`;
+        }
+
+        form.appendChild(qDiv);
+      });
+    }
+
+    loadSurvey();
+
+    // 🚀 3. 提交問卷
+    async function submitSurvey() {
+      let answers = [];
+
+      surveyData.questions.forEach((q, index) => {
+        if (q.type === 'single') {
+          let selected = document.querySelector(`input[name="q${index}"]:checked`);
+          answers.push(selected ? selected.value : '');
+        } else if (q.type === 'multiple') {
+          let selected = Array.from(document.querySelectorAll(`input[name="q${index}"]:checked`));
+          answers.push(selected.map(x => x.value));
+        } else if (q.type === 'text') {
+          let text = document.querySelector(`textarea[name="q${index}"]`).value;
+          answers.push(text);
+        }
+      });
+
+      let res = await fetch(`http://localhost:5000/api/surveys/${surveyId}/answers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers })
+      });
+
+      let data = await res.json();
+      alert('問卷提交成功！');
+    }
+  </script>
+</body>
+</html>

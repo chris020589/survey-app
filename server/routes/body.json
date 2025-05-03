@@ -1,0 +1,16 @@
+{
+  "title": "顧客滿意度調查",
+  "description": "請協助填寫以下問卷",
+  "questions": [
+    {
+      "questionText": "你給我們的服務打幾分？",
+      "type": "single",
+      "options": ["1分", "2分", "3分", "4分", "5分"]
+    },
+    {
+      "questionText": "請提供建議",
+      "type": "text",
+      "options": []
+    }
+  ]
+}
