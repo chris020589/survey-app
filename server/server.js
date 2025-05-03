@@ -1,22 +1,34 @@
 // ✅ 完整升級版：簡易問卷系統 (含統計圖表 + 登入功能)
 
-// 📁 server/server.js
+// ✅ /server/server.js
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+
+const surveyRoutes = require('./routes/surveyRoutes');
+const authRoutes = require('./routes/authRoutes');
+
 const app = express();
 
+// 中介軟體
 app.use(cors());
 app.use(express.json());
 
-// 📦 問卷路由
-app.use('/api/surveys', require('./routes/surveys'));
+// 路由
+app.use('/api', surveyRoutes);
+app.use('/api', authRoutes);
 
-// 🚀 連接 MongoDB
-mongoose.connect('mongodb://127.0.0.1:27017/survey-app', {
+// 連線到 MongoDB
+mongoose.connect('mongodb://localhost:27017/surveydb', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-});
+})
+  .then(() => console.log('✅ 已連線到 MongoDB'))
+  .catch(err => console.error('❌ MongoDB 連線失敗:', err));
+
+// 啟動伺服器
+const PORT = 5000;
+app.listen(PORT, () => console.log(`🚀 伺服器啟動於 http://localhost:${PORT}`));
 
 const SurveySchema = new mongoose.Schema({
   title: String,
@@ -101,69 +113,5 @@ app.get('/api/surveys/:id/stats', async (req, res) => {
 
 app.listen(5000, () => console.log('Server running on port 5000'));
 
-// ➡️ Admin 初始帳號：
-// 手動插入 MongoDB： { username: 'admin', password: '1234' }
 
 
-/* ✅ 📁 client/survey.html (問卷填寫頁) */
-/*
-<!DOCTYPE html>
-<html>
-<head>
-  <title>問卷填寫</title>
-  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-</head>
-<body>
-  <h1 id="title"></h1>
-  <p id="desc"></p>
-  <form id="surveyForm"></form>
-  <button onclick="submitSurvey()">提交</button>
-
-  <script>
-    let surveyId = new URLSearchParams(location.search).get('id');
-    let surveyData;
-
-    axios.get(`http://localhost:5000/api/surveys/${surveyId}`).then(res => {
-      surveyData = res.data;
-      document.getElementById('title').innerText = surveyData.title;
-      document.getElementById('desc').innerText = surveyData.description;
-      let form = document.getElementById('surveyForm');
-
-      surveyData.questions.forEach((q, idx) => {
-        let div = document.createElement('div');
-        div.innerHTML = `<p>${q.questionText}</p>`;
-
-        if (q.type === 'single') {
-          q.options.forEach(opt => {
-            div.innerHTML += `<label><input type="radio" name="q${idx}" value="${opt}">${opt}</label><br>`;
-          });
-        } else if (q.type === 'multiple') {
-          q.options.forEach(opt => {
-            div.innerHTML += `<label><input type="checkbox" name="q${idx}" value="${opt}">${opt}</label><br>`;
-          });
-        } else {
-          div.innerHTML += `<input name="q${idx}" type="text"><br>`;
-        }
-
-        form.appendChild(div);
-      });
-    });
-
-    function submitSurvey() {
-      let answers = surveyData.questions.map((q, idx) => {
-        if (q.type === 'single') {
-          return document.querySelector(`input[name=q${idx}]:checked`)?.value;
-        } else if (q.type === 'multiple') {
-          return Array.from(document.querySelectorAll(`input[name=q${idx}]:checked`)).map(e => e.value);
-        } else {
-          return document.querySelector(`input[name=q${idx}]`).value;
-        }
-      });
-
-      axios.post(`http://localhost:5000/api/surveys/${surveyId}/answers`, { answers })
-        .then(() => alert('提交成功！'));
-    }
-  </script>
-</body>
-</html>
-*/

@@ -41,4 +41,17 @@ router.delete('/:id', async (req, res) => {
   res.json({ message: '問卷已刪除' });
 });
 
+// 填寫問卷
+router.post('/answers', async (req, res) => {
+  const newAnswer = new Answer(req.body);
+  await newAnswer.save();
+  res.send(newAnswer);
+});
+
+// 統計結果
+router.get('/results/:surveyId', async (req, res) => {
+  const answers = await Answer.find({ surveyId: req.params.surveyId });
+  res.send(answers);
+});
+
 module.exports = router;
