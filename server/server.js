@@ -19,7 +19,7 @@ app.use('/api', surveyRoutes);
 app.use('/api', authRoutes);
 
 // 連線到 MongoDB
-mongoose.connect('mongodb://localhost:27017/surveydb', {
+mongoose.connect('mongodb://localhost:27017/survey-app', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
