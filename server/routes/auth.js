@@ -19,9 +19,6 @@ function auth(req, res, next) {
       return res.status(403).json({ error: '無效的驗證 Token' });
     }
 
-    // 檢查解碼後的資料
-    console.log('解碼後的 Token 資料:', decoded);
-
     // 確保 decoded 中包含 userId
     if (!decoded.userId) {
       console.error('解碼後的 Token 中缺少 userId');
@@ -29,6 +26,7 @@ function auth(req, res, next) {
     }
 
     req.userId = decoded.userId; // 將解碼後的使用者 ID 附加到請求物件
+    
     // 新增日誌
     console.log('解碼後的 Token 資料:', decoded);
     console.log('設置的 req.userId:', req.userId);

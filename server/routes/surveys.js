@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const router = express.Router();
 const mongoose = require('mongoose'); // 引入 mongoose
 
-// Middleware 驗證 JWT
+// ✅ JWT 驗證中介層
 function auth(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
@@ -13,12 +13,24 @@ function auth(req, res, next) {
   }
 
   const token = authHeader.split(' ')[1];
-  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => { // 使用環境變數 JWT_SECRET
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
     if (err) {
       console.error('JWT 驗證失敗:', err);
       return res.status(403).json({ error: '無效的驗證 Token' });
     }
-    req.user = decoded; // 將解碼後的使用者資訊附加到請求物件
+
+    // 確保 decoded 中包含 userId
+    if (!decoded.userId) {
+      console.error('解碼後的 Token 中缺少 userId');
+      return res.status(403).json({ error: 'Token 無效，缺少 userId' });
+    }
+
+    req.userId = decoded.userId; // 將解碼後的使用者 ID 附加到請求物件
+
+    // 新增日誌
+    console.log('解碼後的 Token 資料:', decoded);
+    console.log('設置的 req.userId:', req.userId);
+
     next();
   });
 }
@@ -28,26 +40,28 @@ router.post('/', auth, async (req, res) => {
   try {
     const { title, description } = req.body;
 
-    // 新增日誌
-    console.log('收到的新增問卷請求:', req.body);
-    console.log('使用者 ID:', req.userId);
+    // 新增日誌檢查請求體
+    console.log('收到的新增問卷請求體:', req.body);
 
-    // 確保 req.userId 存在
-    if (!req.userId) {
-      return res.status(400).json({ error: '使用者未驗證' });
+    if (!title || !description) {
+      return res.status(400).json({ error: '標題和描述是必填的' });
     }
 
     const survey = new Survey({
-      user: req.userId, // 從 auth 中介層設置的 userId
+      user: req.userId, // 從驗證中介層獲取使用者 ID
       title,
       description,
     });
 
     await survey.save();
-    res.status(201).json(survey); // 返回新增的問卷
+
+    // 新增日誌檢查保存的問卷
+    console.log('新增的問卷:', survey);
+
+    res.status(201).json({ message: '問卷新增成功', survey });
   } catch (err) {
     console.error('新增問卷失敗:', err);
-    res.status(400).json({ error: err.message }); // 返回錯誤訊息
+    res.status(500).json({ error: '伺服器錯誤' });
   }
 });
 
@@ -141,23 +155,6 @@ router.get('/:id/results', auth, async (req, res) => {
   }
 });
 
-// 獲取所有問卷
-router.get('/', async (req, res) => {
-  try {
-    const surveys = await Survey.find({ user: req.userId });
-
-    // 如果問卷列表為空，返回空陣列或提示訊息
-    if (surveys.length === 0) {
-      return res.status(200).json([]); // 返回空陣列
-    }
-
-    res.json(surveys); // 返回問卷列表
-  } catch (err) {
-    console.error('獲取問卷列表失敗:', err);
-    res.status(500).json({ error: '伺服器錯誤，無法獲取問卷列表' });
-  }
-});
-
 // 取得單份問卷
 router.get('/:id', auth, async (req, res) => {
   try {
@@ -182,6 +179,32 @@ router.get('/:id/stats', auth, async (req, res) => {
     console.error('統計查詢失敗:', err);
     res.status(500).json({ error: '統計查詢失敗' }); // 返回 JSON 格式的錯誤
   }
+});
+
+// 獲取當前使用者的問卷
+router.get('/', auth, async (req, res) => {
+  console.log('獲取問卷的 API 被呼叫'); // 確認請求是否到達此處
+
+  let surveys; // 在函數作用域內定義 surveys
+
+  try {
+    console.log('當前使用者 ID:', req.userId); // 新增日誌檢查使用者 ID
+
+    // 如果 req.userId 已是 ObjectId，則直接使用
+    surveys = await Survey.find({ user: req.userId });
+
+    // 新增日誌檢查查詢結果
+    console.log('查詢到的問卷:', surveys);
+
+    res.status(200).json(surveys);
+  } catch (err) {
+    console.error('獲取問卷失敗:', err);
+    res.status(500).json({ error: '伺服器錯誤' });
+  }
+
+  // 在 try-catch 區塊外使用 surveys
+  console.log('查詢條件:', { user: req.userId });
+  console.log('查詢結果:', surveys);
 });
 
 module.exports = router;

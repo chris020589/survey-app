@@ -8,11 +8,9 @@
 <body>
   <h1>問卷總覽</h1>
   <ul id="surveyList"></ul>
-  <button type="button" onclick="deleteSurvey()">刪除問卷</button>
   <script>
     const API_URL = 'http://localhost:5000/api/surveys';
 
-    // 載入問卷列表
     async function loadSurveys() {
       try {
         const token = localStorage.getItem('token');
@@ -36,10 +34,11 @@
 
         const surveys = await res.json();
 
-                // 如果問卷列表為空，顯示提示
+        // 如果問卷列表為空，顯示提示
         if (Array.isArray(surveys) && surveys.length === 0) {
           alert('您目前沒有任何問卷，請先去新增問卷');
           window.location.href = 'new.html';
+          return;
         }
 
         // 渲染問卷列表，新增刪除按鈕
