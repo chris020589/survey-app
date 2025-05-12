@@ -3,94 +3,98 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>問卷管理</title>
+  <title>問卷預覽</title>
 </head>
 <body>
-  <h1>問卷管理</h1>
-  <button type="button" onclick="goToNewSurvey()">新增問卷</button>
-  <button type="button" onclick="deleteSurvey()">刪除問卷</button>
-  <h2>問卷列表</h2>
-  <ul id="surveyList"></ul>
+  <h1 id="surveyTitle"></h1>
+  <p id="surveyDescription"></p>
+  <div id="questionsContainer"></div>
+  <button type="button" onclick="goBack()">返回更改</button>
+  <button type="button" onclick="saveSurvey()">儲存問卷</button>
 
   <script>
-    const API_URL = 'http://localhost:5000/api/surveys';
+    // 檢查是否是預覽模式
+    const isPreview = new URLSearchParams(window.location.search).get('preview') === 'true';
 
-    // 載入問卷列表
-    async function loadSurveys() {
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          alert('請先登入');
-          window.location.href = 'login.html'; // 跳轉到登入頁面
-          return;
-        }
+    if (isPreview) {
+      const survey = JSON.parse(localStorage.getItem('previewSurvey'));
 
-        const res = await fetch(API_URL, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          }
-        });
+      // 渲染問卷標題和描述
+      document.getElementById('surveyTitle').innerText = survey.title;
+      document.getElementById('surveyDescription').innerText = survey.description;
 
-        if (!res.ok) {
-          throw new Error('無法獲取問卷列表');
-        }
-
-        const surveys = await res.json();
-
-        // 渲染問卷列表，新增刪除按鈕
-        const list = document.getElementById('surveyList');
-        list.innerHTML = surveys.map(s => `
-          <li>
-            <span>${s.title}</span>
-            <button onclick="deleteSurvey('${s._id}')">刪除問卷</button>
-          </li>
-        `).join('');
-      } catch (err) {
-        console.error(err);
-        alert('載入問卷列表失敗，請稍後再試');
-      }
+      // 渲染問卷題目
+      const container = document.getElementById('questionsContainer');
+      survey.questions.forEach((q) => {
+        const questionHtml = `
+          <div>
+            <h3>${q.text}</h3>
+            ${renderQuestionOptions(q)}
+          </div>
+        `;
+        container.innerHTML += questionHtml;
+      });
     }
 
-    // 刪除問卷
-    async function deleteSurvey(surveyId) {
-      const confirmDelete = confirm('確定要刪除此問卷嗎？此操作無法復原！');
-      if (!confirmDelete) {
-        return; // 如果使用者取消，則不執行刪除
+    // 渲染題目選項
+    function renderQuestionOptions(question) {
+      if (question.type === 'single' || question.type === 'multiple') {
+        return question.options.map(opt => `
+          <div>
+            <input type="${question.type === 'single' ? 'radio' : 'checkbox'}" disabled>
+            <label>${opt}</label>
+          </div>
+        `).join('');
+      } else if (question.type === 'dropdown') {
+        return `
+          <select disabled>
+            ${question.options.map(opt => `<option>${opt}</option>`).join('')}
+          </select>
+        `;
+      } else if (question.type === 'text') {
+        return `<input type="text" disabled>`;
+      } else if (question.type === 'textarea') {
+        return `<textarea disabled></textarea>`;
+      } else if (question.type === 'date') {
+        return `<input type="date" disabled>`;
+      } else if (question.type === 'time') {
+        return `<input type="time" disabled>`;
       }
+      return '';
+    }
 
+    // 返回更改
+    function goBack() {
+      window.location.href = 'new.html';
+    }
+
+    // 儲存問卷
+    async function saveSurvey() {
+      const survey = JSON.parse(localStorage.getItem('previewSurvey'));
       const token = localStorage.getItem('token');
-      if (!token) {
-        alert('請先登入！');
-        return;
-      }
 
       try {
-        const res = await fetch(`${API_URL}/${surveyId}`, {
-          method: 'DELETE',
+        const res = await fetch('http://localhost:5000/api/surveys/save', {
+          method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
+          body: JSON.stringify(survey),
         });
 
         if (res.ok) {
-          alert('問卷已成功刪除！');
-          // 刪除成功後重新載入問卷列表
-          loadSurveys();
+          alert('問卷儲存成功！');
+          window.location.href = 'dashboard.html'; // 跳轉到問卷總覽頁面
         } else {
           const error = await res.json();
-          alert(`刪除問卷失敗！原因：${error.error || '未知錯誤'}`);
+          alert(`儲存問卷失敗！原因：${error.error || '未知錯誤'}`);
         }
       } catch (err) {
-        console.error('刪除問卷時發生錯誤:', err);
+        console.error('儲存問卷時發生錯誤:', err);
         alert('伺服器錯誤，請稍後再試');
       }
     }
-
-    // 初始化載入問卷列表
-    loadSurveys();
   </script>
 </body>
 </html>

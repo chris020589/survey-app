@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
   <title>新增/編輯問卷</title>
   <style>
     .question-container {
@@ -23,12 +24,12 @@
     <textarea id="description" placeholder="問卷描述"></textarea>
     <div id="questionsContainer"></div>
     <button type="button" onclick="addQuestion()">新增題目</button>
+    <button type="button" onclick="previewSurvey()">預覽問卷</button>
     <button type="button" onclick="saveSurvey()">儲存問卷</button>
   </form>
 
   <script>
     const API_URL = 'http://localhost:5000/api/surveys';
-    const surveyId = new URLSearchParams(window.location.search).get('id');
     let questions = [];
 
     // 新增題目
@@ -56,15 +57,19 @@
             <input type="text" placeholder="題目描述" value="${q.text}" onchange="updateQuestionText('${q.id}', this.value)">
             <select onchange="updateQuestionType('${q.id}', this.value)">
               <option value="single" ${q.type === 'single' ? 'selected' : ''}>單選題</option>
+              <option value="multiple" ${q.type === 'multiple' ? 'selected' : ''}>多選題</option>
+              <option value="dropdown" ${q.type === 'dropdown' ? 'selected' : ''}>下拉選單</option>
               <option value="text" ${q.type === 'text' ? 'selected' : ''}>簡答題</option>
               <option value="textarea" ${q.type === 'textarea' ? 'selected' : ''}>詳答題</option>
+              <option value="date" ${q.type === 'date' ? 'selected' : ''}>日期</option>
+              <option value="time" ${q.type === 'time' ? 'selected' : ''}>時間</option>
             </select>
             <label>
               必填
               <input type="checkbox" ${q.required ? 'checked' : ''} onchange="toggleRequired('${q.id}', this.checked)">
             </label>
             <div class="options-container">
-              ${q.type === 'single' ? renderOptions(q.id, q.options) : ''}
+              ${renderOptions(q)}
             </div>
             <button type="button" onclick="removeQuestion('${q.id}')">刪除題目</button>
           </div>
@@ -74,16 +79,36 @@
     }
 
     // 渲染選項
-    function renderOptions(questionId, options) {
-      return `
-        ${options.map((opt, index) => `
-          <div>
-            <input type="text" value="${opt}" onchange="updateOption('${questionId}', ${index}, this.value)">
-            <button type="button" onclick="removeOption('${questionId}', ${index})">刪除選項</button>
-          </div>
-        `).join('')}
-        <button type="button" onclick="addOption('${questionId}')">新增選項</button>
-      `;
+    function renderOptions(question) {
+      if (question.type === 'single' || question.type === 'multiple' || question.type === 'dropdown') {
+        return `
+          ${question.options.map((opt, index) => `
+            <div>
+              <input type="text" value="${opt}" onchange="updateOption('${question.id}', ${index}, this.value)">
+              <button type="button" onclick="removeOption('${question.id}', ${index})">刪除選項</button>
+            </div>
+          `).join('')}
+          <button type="button" onclick="addOption('${question.id}')">新增選項</button>
+        `;
+      } else if (question.type === 'date') {
+        return `<input type="date" disabled>`;
+      } else if (question.type === 'time') {
+        return `<input type="time" disabled>`;
+      } else {
+        return ''; // 簡答題和詳答題不需要選項
+      }
+    }
+
+    // 預覽問卷
+    function previewSurvey() {
+      const title = document.getElementById('title').value;
+      const description = document.getElementById('description').value;
+
+      // 將問卷資料存入 localStorage
+      localStorage.setItem('previewSurvey', JSON.stringify({ title, description, questions }));
+
+      // 跳轉到 create.html
+      window.location.href = 'create.html?preview=true';
     }
 
     // 更新題目文字
@@ -96,11 +121,14 @@
     function updateQuestionType(questionId, type) {
       const question = questions.find(q => q.id === questionId);
       question.type = type;
-      if (type !== 'single') {
-        question.options = []; // 清空選項
-      }
-      renderQuestions();
+
+    // 清空選項（僅適用於需要選項的題型）
+    if (type !== 'single' && type !== 'multiple' && type !== 'dropdown') {
+      question.options = [];
     }
+
+  renderQuestions();
+}
 
     // 切換必填
     function toggleRequired(questionId, required) {

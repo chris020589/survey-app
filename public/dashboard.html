@@ -7,9 +7,19 @@
 </head>
 <body>
   <h1>問卷總覽</h1>
+  
+  <!-- 新增問卷按鈕 -->
+  <button onclick="goToNewSurvey()">新增問卷</button>
+  
   <ul id="surveyList"></ul>
+  
   <script>
     const API_URL = 'http://localhost:5000/api/surveys';
+
+    // 跳轉到 new.html
+    function goToNewSurvey() {
+      window.location.href = 'new.html';
+    }
 
     async function loadSurveys() {
       try {
@@ -56,6 +66,7 @@
       }
     }
 
+    // 刪除問卷
     async function deleteSurvey(surveyId) {
       const confirmDelete = confirm('確定要刪除此問卷嗎？此操作無法復原！');
       if (!confirmDelete) {
