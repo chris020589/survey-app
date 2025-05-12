@@ -1,0 +1,32 @@
+<div id="resultsContainer"></div>
+
+<script>
+  const API_URL = 'http://localhost:5000/api/surveys';
+  const surveyId = new URLSearchParams(window.location.search).get('id');
+
+  async function loadResults() {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/${surveyId}/results`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+  
+      if (!res.ok) {
+        throw new Error('無法獲取問卷結果');
+      }
+  
+      const results = await res.json();
+      const container = document.getElementById('resultsContainer');
+      container.innerHTML = results.map(r => `<p>${r._id}: ${r.count}</p>`).join('');
+    } catch (err) {
+      console.error(err);
+      alert('載入問卷結果失敗，請稍後再試');
+    }
+  }
+
+  loadResults();
+</script>

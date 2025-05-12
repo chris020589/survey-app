@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>問卷總覽</title>
+</head>
+<body>
+  <h1>問卷總覽</h1>
+  <ul id="surveyList"></ul>
+  <button type="button" onclick="deleteSurvey()">刪除問卷</button>
+  <script>
+    const API_URL = 'http://localhost:5000/api/surveys';
+
+    // 載入問卷列表
+    async function loadSurveys() {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          alert('請先登入');
+          window.location.href = 'login.html'; // 跳轉到登入頁面
+          return;
+        }
+
+        const res = await fetch(API_URL, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        });
+
+        if (!res.ok) {
+          throw new Error('無法獲取問卷列表');
+        }
+
+        const surveys = await res.json();
+
+                // 如果問卷列表為空，顯示提示
+        if (Array.isArray(surveys) && surveys.length === 0) {
+          alert('您目前沒有任何問卷，請先去新增問卷');
+          window.location.href = 'new.html';
+        }
+
+        // 渲染問卷列表，新增刪除按鈕
+        const list = document.getElementById('surveyList');
+        list.innerHTML = surveys.map(s => `
+          <li>
+            <a href="fill.html?id=${s._id}">${s.title}</a>
+            <button onclick="loadStats('${s._id}')">查看統計</button>
+            <button onclick="deleteSurvey('${s._id}')">刪除問卷</button>
+          </li>
+        `).join('');
+      } catch (err) {
+        console.error(err);
+        alert('載入問卷列表失敗，請稍後再試');
+      }
+    }
+
+    async function deleteSurvey(surveyId) {
+      const confirmDelete = confirm('確定要刪除此問卷嗎？此操作無法復原！');
+      if (!confirmDelete) {
+        return; // 如果使用者取消，則不執行刪除
+      }
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('請先登入！');
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/${surveyId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (res.ok) {
+          alert('問卷已成功刪除！');
+          // 刪除成功後重新載入問卷列表
+          loadSurveys();
+        } else {
+          const error = await res.json();
+          alert(`刪除問卷失敗！原因：${error.error || '未知錯誤'}`);
+        }
+      } catch (err) {
+        console.error('刪除問卷時發生錯誤:', err);
+        alert('伺服器錯誤，請稍後再試');
+      }
+    }
+
+    async function loadStats(surveyId) {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/${surveyId}/stats`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        });
+
+        if (!res.ok) {
+          throw new Error('無法獲取統計數據');
+        }
+
+        const stats = await res.json();
+        alert(JSON.stringify(stats)); // 可以改為更友好的顯示方式
+      } catch (err) {
+        console.error(err);
+        alert('載入統計數據失敗，請稍後再試');
+      }
+    }
+
+    // 初始化載入問卷列表
+    loadSurveys();
+  </script>
+</body>
+</html>

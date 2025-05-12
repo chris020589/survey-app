@@ -1,144 +1,62 @@
-/* ✅ src/index.css - 問卷系統 極致作品集版 (含動畫 + Material 風格) */
-
-/* Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
-
+/* 全局樣式 */
 body {
-  font-family: 'Poppins', sans-serif;
-  background-color: #f0f4f8;
-  margin: 0;
-  padding: 20px;
-  color: #333;
-  overflow-x: hidden;
-}
-
-h1 {
-  text-align: center;
-  color: #1e3a8a;
-  margin-bottom: 30px;
-  font-size: 2.5rem;
-  position: relative;
-  animation: fadeSlideDown 1s ease forwards;
-}
-
-h1::after {
-  content: '';
-  width: 60px;
-  height: 4px;
-  background: #2563eb;
-  display: block;
-  margin: 10px auto 0;
-  border-radius: 2px;
-}
-
-h2 {
-  color: #1e40af;
-  margin-top: 0;
-  animation: fadeSlideUp 1s ease forwards;
-}
-
-p {
-  color: #555;
-  line-height: 1.6;
-}
-
-div {
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-/* 問卷卡片 */
-div > div {
-  background-color: #ffffff;
-  border-radius: 16px;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.05);
-  padding: 30px;
-  margin-bottom: 30px;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  animation: fadeSlideUp 1s ease forwards;
-}
-
-div > div:hover {
-  transform: translateY(-6px) scale(1.02);
-  box-shadow: 0 12px 30px rgba(0,0,0,0.1);
-}
-
-input[type="text"] {
-  width: 100%;
-  padding: 12px;
-  margin: 10px 0 20px 0;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 1rem;
-  box-sizing: border-box;
-  transition: border 0.2s ease, box-shadow 0.2s ease;
-}
-
-input[type="text"]:focus {
-  border: 1px solid #2563eb;
-  outline: none;
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
-}
-
-input[type="radio"], input[type="checkbox"] {
-  margin-right: 8px;
-  accent-color: #2563eb;
-}
-
-label {
-  display: block;
-  margin: 10px 0;
-  cursor: pointer;
-  transition: color 0.2s ease;
-  animation: fadeSlideUp 1s ease forwards;
-}
-
-label:hover {
-  color: #2563eb;
-}
-
-button {
-  background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
-  color: white;
-  padding: 12px 24px;
-  border: none;
-  border-radius: 50px;
-  cursor: pointer;
-  font-size: 1rem;
-  font-weight: 600;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  margin-top: 10px;
-  display: inline-block;
-  animation: fadeSlideUp 1s ease forwards;
-}
-
-button:hover {
-  transform: translateY(-3px) scale(1.05);
-  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.3);
-}
-
-/* 動畫 */
-@keyframes fadeSlideUp {
-  0% { opacity: 0; transform: translateY(20px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes fadeSlideDown {
-  0% { opacity: 0; transform: translateY(-20px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-
-/* 響應式 */
-@media (max-width: 600px) {
-  body {
-    padding: 10px;
-  }
-
-  h1 {
-    font-size: 2rem;
-  }
-
-  div {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f9;
+    margin: 0;
     padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
   }
-}
+  
+  /* 標題樣式 */
+  h1 {
+    color: #333;
+    margin-bottom: 20px;
+  }
+  
+  /* 表單容器樣式 */
+  form {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 400px;
+    margin-bottom: 20px;
+  }
+  
+  /* 表單內的輸入框樣式 */
+  input[type="email"],
+  input[type="password"] {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 16px;
+  }
+  
+  /* 按鈕樣式 */
+  button {
+    width: 100%;
+    padding: 10px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  button:hover {
+    background-color: #0056b3;
+  }
+  
+  /* 表單之間的間距 */
+  form + form {
+    margin-top: 20px;
+  }

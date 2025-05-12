@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>新增/編輯問卷</title>
+  <style>
+    .question-container {
+      margin-bottom: 20px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 5px;
+    }
+    .options-container {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>新增/編輯問卷</h1>
+  <form id="surveyForm">
+    <input type="text" id="title" placeholder="問卷標題" required>
+    <textarea id="description" placeholder="問卷描述"></textarea>
+    <div id="questionsContainer"></div>
+    <button type="button" onclick="addQuestion()">新增題目</button>
+    <button type="button" onclick="saveSurvey()">儲存問卷</button>
+  </form>
+
+  <script>
+    const API_URL = 'http://localhost:5000/api/surveys';
+    const surveyId = new URLSearchParams(window.location.search).get('id');
+    let questions = [];
+
+    // 新增題目
+    function addQuestion() {
+      const questionId = `q${questions.length}`;
+      questions.push({
+        id: questionId,
+        type: 'single', // 預設為單選題
+        text: '',
+        options: [],
+        required: false
+      });
+
+      renderQuestions();
+    }
+
+    // 渲染題目
+    function renderQuestions() {
+      const container = document.getElementById('questionsContainer');
+      container.innerHTML = '';
+
+      questions.forEach((q, index) => {
+        const questionHtml = `
+          <div class="question-container" id="${q.id}">
+            <input type="text" placeholder="題目描述" value="${q.text}" onchange="updateQuestionText('${q.id}', this.value)">
+            <select onchange="updateQuestionType('${q.id}', this.value)">
+              <option value="single" ${q.type === 'single' ? 'selected' : ''}>單選題</option>
+              <option value="text" ${q.type === 'text' ? 'selected' : ''}>簡答題</option>
+              <option value="textarea" ${q.type === 'textarea' ? 'selected' : ''}>詳答題</option>
+            </select>
+            <label>
+              必填
+              <input type="checkbox" ${q.required ? 'checked' : ''} onchange="toggleRequired('${q.id}', this.checked)">
+            </label>
+            <div class="options-container">
+              ${q.type === 'single' ? renderOptions(q.id, q.options) : ''}
+            </div>
+            <button type="button" onclick="removeQuestion('${q.id}')">刪除題目</button>
+          </div>
+        `;
+        container.innerHTML += questionHtml;
+      });
+    }
+
+    // 渲染選項
+    function renderOptions(questionId, options) {
+      return `
+        ${options.map((opt, index) => `
+          <div>
+            <input type="text" value="${opt}" onchange="updateOption('${questionId}', ${index}, this.value)">
+            <button type="button" onclick="removeOption('${questionId}', ${index})">刪除選項</button>
+          </div>
+        `).join('')}
+        <button type="button" onclick="addOption('${questionId}')">新增選項</button>
+      `;
+    }
+
+    // 更新題目文字
+    function updateQuestionText(questionId, text) {
+      const question = questions.find(q => q.id === questionId);
+      question.text = text;
+    }
+
+    // 更新題目類型
+    function updateQuestionType(questionId, type) {
+      const question = questions.find(q => q.id === questionId);
+      question.type = type;
+      if (type !== 'single') {
+        question.options = []; // 清空選項
+      }
+      renderQuestions();
+    }
+
+    // 切換必填
+    function toggleRequired(questionId, required) {
+      const question = questions.find(q => q.id === questionId);
+      question.required = required;
+    }
+
+    // 新增選項
+    function addOption(questionId) {
+      const question = questions.find(q => q.id === questionId);
+      question.options.push('');
+      renderQuestions();
+    }
+
+    // 更新選項
+    function updateOption(questionId, index, value) {
+      const question = questions.find(q => q.id === questionId);
+      question.options[index] = value;
+    }
+
+    // 刪除選項
+    function removeOption(questionId, index) {
+      const question = questions.find(q => q.id === questionId);
+      question.options.splice(index, 1);
+      renderQuestions();
+    }
+
+    // 刪除題目
+    function removeQuestion(questionId) {
+      questions = questions.filter(q => q.id !== questionId);
+      renderQuestions();
+    }
+
+// 儲存問卷並跳轉回 create.html
+async function saveSurvey() {
+  const title = document.getElementById('title').value;
+  const description = document.getElementById('description').value;
+  const token = localStorage.getItem('token');
+
+  try {
+    const res = await fetch('http://localhost:5000/api/surveys/save', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ title, description }),
+    });
+
+    if (res.ok) {
+      const survey = await res.json();
+      alert('問卷儲存成功！');
+      window.location.href = 'create.html'; // 跳轉回 create.html
+    } else {
+      const error = await res.json();
+      alert(`儲存問卷失敗！原因：${error.error || '未知錯誤'}`);
+    }
+  } catch (err) {
+    console.error('儲存問卷時發生錯誤:', err);
+    alert('伺服器錯誤，請稍後再試');
+  }
+}
+
+    loadSurvey();
+  </script>
+</body>
+</html>

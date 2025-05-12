@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>填寫問卷</title>
+</head>
+<body>
+  <h1>填寫問卷</h1>
+  <div id="surveyContainer"></div>
+  <button type="button" onclick="submitAnswers()">提交答案</button>
+
+  <script>
+    const API_URL = 'http://localhost:5000/api/surveys';
+    const surveyId = new URLSearchParams(window.location.search).get('id');
+  
+    async function loadSurvey() {
+      try {
+        const res = await fetch(`${API_URL}/${surveyId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        });
+    
+        if (!res.ok) {
+          throw new Error('無法載入問卷');
+        }
+    
+        const survey = await res.json();
+        const container = document.getElementById('surveyContainer');
+        container.innerHTML = `<h2>${survey.title}</h2><p>${survey.description}</p>`;
+    
+        survey.questions.forEach((q, index) => {
+          const questionHtml = q.type === 'single'
+            ? `<label>${q.text}</label><br>${q.options.map(opt => `<input type="radio" name="q${index}" value="${opt}">${opt}`).join('<br>')}`
+            : `<label>${q.text}</label><br><textarea name="q${index}"></textarea>`;
+          container.innerHTML += `<div>${questionHtml}</div>`;
+        });
+      } catch (err) {
+        console.error(err);
+        alert('載入問卷失敗，請稍後再試');
+      }
+    }
+
+    loadSurvey();
+  </script>
+</body>
+</html>

@@ -1,43 +1,73 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
-    <meta
-      name="description"
-      content="Web site created using create-react-app"
-    />
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
-    <!--
-      manifest.json provides metadata used when your web app is installed on a
-      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
-    -->
-    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-    <!--
-      Notice the use of %PUBLIC_URL% in the tags above.
-      It will be replaced with the URL of the `public` folder during the build.
-      Only files inside the `public` folder can be referenced from the HTML.
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>登入/註冊</title>
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+  <h1>登入</h1>
+  <form id="loginForm">
+    <input type="email" id="loginEmail" placeholder="Email" required>
+    <input type="password" id="loginPassword" placeholder="Password" required>
+    <button type="button" onclick="login()">登入</button>
+  </form>
 
-      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
-      work correctly both with client-side routing and a non-root public URL.
-      Learn how to configure a non-root public URL by running `npm run build`.
-    -->
-    <title>React App</title>
-  </head>
-  <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
-    <!--
-      This HTML file is a template.
-      If you open it directly in the browser, you will see an empty page.
+  <h1>註冊</h1>
+  <form id="registerForm">
+    <input type="email" id="registerEmail" placeholder="Email" required>
+    <input type="password" id="registerPassword" placeholder="Password" required>
+    <button type="button" onclick="register()">註冊</button>
+  </form>
 
-      You can add webfonts, meta tags, or analytics to this file.
-      The build step will place the bundled scripts into the <body> tag.
+  <script>
+    async function login() {
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+    
+      try {
+        const res = await fetch('http://localhost:5000/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json', // 指定請求體的格式
+            'Accept': 'application/json'       // 指定希望伺服器返回 JSON 格式
+          },
+          body: JSON.stringify({ email, password }) // 傳遞登入資料
+        });
+    
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem('token', data.token); // 儲存 JWT Token
+          alert('登入成功！');
+          window.location.href = 'dashboard.html'; // 跳轉到 dashboard.html
+        } else {
+          alert(`登入失敗：${data.error || '未知錯誤'}`);
+        }
+      } catch (err) {
+        console.error('登入請求失敗:', err);
+        alert('伺服器錯誤，請稍後再試');
+      }
+    }
 
-      To begin the development, run `npm start` or `yarn start`.
-      To create a production bundle, use `npm run build` or `yarn build`.
-    -->
-  </body>
+    async function register() {
+      const email = document.getElementById('registerEmail').value;
+      const password = document.getElementById('registerPassword').value;
+      const res = await fetch('http://localhost:5000/api/auth/register', {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json' // 指定希望伺服器返回 JSON 格式
+        },
+         // 將註冊資料轉換為 JSON 格式
+        body: JSON.stringify({ email, password })
+      });
+      if (res.ok) {
+        alert('註冊成功！請登入');
+      } else {
+        alert('註冊失敗！');
+      }
+    };
+  </script>
+</body>
 </html>
