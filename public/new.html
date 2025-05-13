@@ -3,25 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
   <title>新增/編輯問卷</title>
-  <style>
-    .question-container {
-      margin-bottom: 20px;
-      border: 1px solid #ccc;
-      padding: 10px;
-      border-radius: 5px;
-    }
-    .options-container {
-      margin-top: 10px;
-    }
-  </style>
 </head>
 <body>
   <h1>新增/編輯問卷</h1>
+  
+  <!-- 即時顯示區域 -->
+  <h2 id="liveTitle">問卷標題即時顯示</h2>
+  <p id="liveDescription">問卷描述即時顯示</p>
+  
   <form id="surveyForm">
-    <input type="text" id="title" placeholder="問卷標題" required>
-    <textarea id="description" placeholder="問卷描述"></textarea>
+    <input type="text" id="title" placeholder="問卷標題" required oninput="updateLiveTitle(this.value)">
+    <textarea id="description" placeholder="問卷描述" oninput="updateLiveDescription(this.value)"></textarea>
     <div id="questionsContainer"></div>
     <button type="button" onclick="addQuestion()">新增題目</button>
     <button type="button" onclick="previewSurvey()">預覽問卷</button>
@@ -76,6 +69,16 @@
         `;
         container.innerHTML += questionHtml;
       });
+    }
+
+    // 即時更新標題
+    function updateLiveTitle(value) {
+      document.getElementById('liveTitle').innerText = value || '問卷標題即時顯示';
+    }
+
+    // 即時更新描述
+    function updateLiveDescription(value) {
+      document.getElementById('liveDescription').innerText = value || '問卷描述即時顯示';
     }
 
     // 渲染選項
