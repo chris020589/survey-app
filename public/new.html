@@ -8,6 +8,12 @@
 <body>
   <h1>新增/編輯問卷</h1>
   
+  <!-- 分頁切換按鈕 -->
+  <div id="paginationControls">
+    <button type="button" onclick="addPage()">新增分頁</button>
+    <div id="pageButtons"></div>
+  </div>
+  
   <!-- 即時顯示區域 -->
   <h2 id="liveTitle">問卷標題即時顯示</h2>
   <p id="liveDescription">問卷描述即時顯示</p>
@@ -24,12 +30,42 @@
   <script>
     const API_URL = 'http://localhost:5000/api/surveys';
     let questions = [];
+    let currentPage = 1; // 當前分頁
+    let totalPages = 1; // 總分頁數
+
+    // 新增分頁
+    function addPage() {
+      totalPages++;
+      currentPage = totalPages;
+      renderPaginationControls();
+      renderQuestions();
+    }
+
+    // 切換分頁
+    function switchPage(page) {
+      currentPage = page;
+      renderQuestions();
+    }
+
+    // 渲染分頁控制按鈕
+    function renderPaginationControls() {
+      const pageButtons = document.getElementById('pageButtons');
+      pageButtons.innerHTML = '';
+      for (let i = 1; i <= totalPages; i++) {
+        pageButtons.innerHTML += `
+          <button type="button" onclick="switchPage(${i})" ${i === currentPage ? 'disabled' : ''}>
+            分頁 ${i}
+          </button>
+        `;
+      }
+    }
 
     // 新增題目
     function addQuestion() {
       const questionId = `q${questions.length}`;
       questions.push({
         id: questionId,
+        page: currentPage, // 將題目分配到當前分頁
         type: 'single', // 預設為單選題
         text: '',
         options: [],
@@ -44,7 +80,10 @@
       const container = document.getElementById('questionsContainer');
       container.innerHTML = '';
 
-      questions.forEach((q, index) => {
+      // 過濾當前分頁的題目
+      const currentQuestions = questions.filter(q => q.page === currentPage);
+
+      currentQuestions.forEach((q, index) => {
         const questionHtml = `
           <div class="question-container" id="${q.id}">
             <input type="text" placeholder="題目描述" value="${q.text}" onchange="updateQuestionText('${q.id}', this.value)">
@@ -101,6 +140,10 @@
         return ''; // 簡答題和詳答題不需要選項
       }
     }
+    
+    // 初始化
+    renderPaginationControls();
+    renderQuestions();
 
     // 預覽問卷
     function previewSurvey() {
