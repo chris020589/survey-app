@@ -68,21 +68,22 @@ router.post('/', auth, async (req, res) => {
 // 儲存問卷
 router.post('/save', auth, async (req, res) => {
   try {
-    const { title, description } = req.body;
+    const { title, description, questions } = req.body;
 
     // 新增日誌
     console.log('收到的儲存問卷請求:', req.body);
-    console.log('使用者 ID:', req.user.userId);
+    console.log('使用者 ID:', req.userId);
 
-    // 確保 req.user.userId 存在
-    if (!req.user.userId) {
+    // 確保 req.userId 存在
+    if (!req.userId) {
       return res.status(400).json({ error: '使用者未驗證' });
     }
 
     const survey = new Survey({
-      user: req.user.userId, // 從 auth 中介層設置的 userId
+      user: req.userId, // 正確取得 userId
       title,
       description,
+      questions // 如果你的 schema 有 questions 欄位
     });
 
     await survey.save();

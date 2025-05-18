@@ -72,6 +72,7 @@
     async function saveSurvey() {
       const survey = JSON.parse(localStorage.getItem('previewSurvey'));
       const token = localStorage.getItem('token');
+      const userId = localStorage.getItem('userId'); // 若後端需要
 
       try {
         const res = await fetch('http://localhost:5000/api/surveys/save', {
@@ -80,12 +81,18 @@
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(survey),
-        });
+        body: JSON.stringify({
+          title: survey.title,
+          description: survey.description,
+          questions: survey.questions,
+          userId // 若後端需要
+        }),
+      });
 
         if (res.ok) {
+          const savedSurvey = await res.json();
           alert('問卷儲存成功！');
-          window.location.href = 'dashboard.html'; // 跳轉到問卷總覽頁面
+          window.location.href = 'dashboard.html'; // 儲存後跳轉到儀表板
         } else {
           const error = await res.json();
           alert(`儲存問卷失敗！原因：${error.error || '未知錯誤'}`);

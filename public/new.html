@@ -3,7 +3,31 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
   <title>新增/編輯問卷</title>
+  <style>
+    .question-container {
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .drag-handle {
+      cursor: grab;
+      font-size: 1.5em;
+      user-select: none;
+      margin-right: 8px;
+    }
+    .options-container {
+      margin-top: 10px;
+    }
+    textarea {
+      resize: none;
+    }
+  </style>
 </head>
 <body>
   <h1>新增/編輯問卷</h1>
@@ -11,6 +35,9 @@
   <!-- 分頁切換按鈕 -->
   <div id="paginationControls">
     <button type="button" onclick="addPage()">新增分頁</button>
+    <button type="button" onclick="exportSurvey()">匯出問卷</button>
+    <input type="file" id="importFile" style="display:none" accept=".json" onchange="importSurvey(event)">
+    <button type="button" onclick="document.getElementById('importFile').click()">匯入問卷</button>
     <div id="pageButtons"></div>
   </div>
   
@@ -86,6 +113,7 @@
       currentQuestions.forEach((q, index) => {
         const questionHtml = `
           <div class="question-container" id="${q.id}">
+            <span class="drag-handle" style="cursor: grab;">☰</span>
             <input type="text" placeholder="題目描述" value="${q.text}" onchange="updateQuestionText('${q.id}', this.value)">
             <select onchange="updateQuestionType('${q.id}', this.value)">
               <option value="single" ${q.type === 'single' ? 'selected' : ''}>單選題</option>
@@ -107,6 +135,31 @@
           </div>
         `;
         container.innerHTML += questionHtml;
+      });
+        initSortable();
+    }
+    function initSortable() {
+      const container = document.getElementById('questionsContainer');
+      if (!container) return;
+      if (window.sortableInstance) window.sortableInstance.destroy();
+      window.sortableInstance = Sortable.create(container, {
+        handle: '.drag-handle',
+        animation: 150,
+        onEnd: function (evt) {
+          // 只針對當前分頁的題目排序
+          const currentQuestions = questions.filter(q => q.page === currentPage);
+          const movedItem = currentQuestions.splice(evt.oldIndex, 1)[0];
+          currentQuestions.splice(evt.newIndex, 0, movedItem);
+          // 更新 questions 陣列順序
+          let idx = 0;
+          questions = questions.map(q => {
+            if (q.page === currentPage) {
+              return currentQuestions[idx++];
+            }
+            return q;
+          });
+          renderQuestions();
+        }
       });
     }
 
@@ -208,11 +261,12 @@
       renderQuestions();
     }
 
-// 儲存問卷並跳轉回 create.html
+// 儲存問卷
 async function saveSurvey() {
   const title = document.getElementById('title').value;
   const description = document.getElementById('description').value;
   const token = localStorage.getItem('token');
+  const userId = localStorage.getItem('userId'); // 若後端需要
 
   try {
     const res = await fetch('http://localhost:5000/api/surveys/save', {
@@ -221,13 +275,18 @@ async function saveSurvey() {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ title, description }),
+      body: JSON.stringify({        
+        title,
+        description,
+        questions,
+        userId // 若後端需要
+        }),
     });
 
     if (res.ok) {
       const survey = await res.json();
       alert('問卷儲存成功！');
-      window.location.href = 'create.html'; // 跳轉回 create.html
+      window.location.href = 'dashboard.html'; 
     } else {
       const error = await res.json();
       alert(`儲存問卷失敗！原因：${error.error || '未知錯誤'}`);
@@ -238,6 +297,69 @@ async function saveSurvey() {
   }
 }
 
+  // 匯出問卷
+  function exportSurvey() {
+    const title = document.getElementById('title').value;
+    const description = document.getElementById('description').value;
+    // 假設 questions 是全域變數
+    const data = { title, description, questions };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (title || 'survey') + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // 匯入問卷
+  function importSurvey(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = JSON.parse(e.target.result);
+        document.getElementById('title').value = data.title || '';
+        document.getElementById('description').value = data.description || '';
+        questions = Array.isArray(data.questions) ? data.questions : [];
+        // 若有即時顯示功能，需同步更新
+        if (typeof updateLiveTitle === 'function') updateLiveTitle(data.title || '');
+        if (typeof updateLiveDescription === 'function') updateLiveDescription(data.description || '');
+        renderQuestions();
+      } catch (err) {
+        alert('匯入失敗，檔案格式錯誤');
+      }
+    };
+    reader.readAsText(file);
+    // 清空 input 以便下次可重新選同一檔案
+    event.target.value = '';
+  }
+
+  function loadSurvey() {
+  const preview = localStorage.getItem('previewSurvey');
+  if (preview) {
+    try {
+      const data = JSON.parse(preview);
+      document.getElementById('title').value = data.title || '';
+      document.getElementById('description').value = data.description || '';
+      questions = Array.isArray(data.questions) ? data.questions : [];
+      if (typeof updateLiveTitle === 'function') updateLiveTitle(data.title || '');
+      if (typeof updateLiveDescription === 'function') updateLiveDescription(data.description || '');
+      renderQuestions();
+      // 清除暫存，避免下次誤載
+      localStorage.removeItem('previewSurvey');
+    } catch (e) {
+      // 若解析失敗則忽略
+    }
+  }
+}
+
+    // 初始化
+    renderPaginationControls();
+    renderQuestions();
     loadSurvey();
   </script>
 </body>
