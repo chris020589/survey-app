@@ -51,7 +51,7 @@
     <div id="questionsContainer"></div>
     <button type="button" onclick="addQuestion()">新增題目</button>
     <button type="button" onclick="previewSurvey()">預覽問卷</button>
-    <button type="button" onclick="saveSurvey()">儲存問卷</button>
+    <button type="button" id="saveButton" onclick="saveSurvey()">儲存問卷</button>
   </form>
 
   <script>
@@ -59,6 +59,9 @@
     let questions = [];
     let currentPage = 1; // 當前分頁
     let totalPages = 1; // 總分頁數
+    let isEditMode = false;
+    let editingSurveyId = null;
+    
 
     // 新增分頁
     function addPage() {
@@ -91,16 +94,24 @@
     function addQuestion() {
       const questionId = `q${questions.length}`;
       questions.push({
-        id: questionId,
-        page: currentPage, // 將題目分配到當前分頁
-        type: 'single', // 預設為單選題
-        text: '',
-        options: [],
-        required: false
-      });
+      id: questionId,
+      page: currentPage, // 將題目分配到當前分頁
+      type: 'single', // 預設為單選題
+      text: '',
+      options: [],
+      required: false,
+      validation: {
+        minValue: '',
+        maxValue: '',
+        minLength: '',
+        maxLength: '',
+        pattern: ''
+        },
+        image: null // 新增圖片屬性
+    });
 
-      renderQuestions();
-    }
+    renderQuestions();
+  }
 
     // 渲染題目
     function renderQuestions() {
@@ -114,30 +125,131 @@
         const questionHtml = `
           <div class="question-container" id="${q.id}">
             <span class="drag-handle" style="cursor: grab;">☰</span>
-            <input type="text" placeholder="題目描述" value="${q.text}" onchange="updateQuestionText('${q.id}', this.value)">
-            <select onchange="updateQuestionType('${q.id}', this.value)">
-              <option value="single" ${q.type === 'single' ? 'selected' : ''}>單選題</option>
-              <option value="multiple" ${q.type === 'multiple' ? 'selected' : ''}>多選題</option>
-              <option value="dropdown" ${q.type === 'dropdown' ? 'selected' : ''}>下拉選單</option>
-              <option value="text" ${q.type === 'text' ? 'selected' : ''}>簡答題</option>
-              <option value="textarea" ${q.type === 'textarea' ? 'selected' : ''}>詳答題</option>
-              <option value="date" ${q.type === 'date' ? 'selected' : ''}>日期</option>
-              <option value="time" ${q.type === 'time' ? 'selected' : ''}>時間</option>
-            </select>
-            <label>
-              必填
-              <input type="checkbox" ${q.required ? 'checked' : ''} onchange="toggleRequired('${q.id}', this.checked)">
-            </label>
-            <div class="options-container">
-              ${renderOptions(q)}
+            <div style="flex-grow: 1;">
+              <input type="text" placeholder="題目描述" value="${q.text}" onchange="updateQuestionText('${q.id}', this.value)">
+              <div>
+                <select onchange="updateQuestionType('${q.id}', this.value)">
+                  <option value="single" ${q.type === 'single' ? 'selected' : ''}>單選題</option>
+                  <option value="multiple" ${q.type === 'multiple' ? 'selected' : ''}>多選題</option>
+                  <option value="dropdown" ${q.type === 'dropdown' ? 'selected' : ''}>下拉選單</option>
+                  <option value="text" ${q.type === 'text' ? 'selected' : ''}>簡答題</option>
+                  <option value="textarea" ${q.type === 'textarea' ? 'selected' : ''}>詳答題</option>
+                  <option value="date" ${q.type === 'date' ? 'selected' : ''}>日期</option>
+                  <option value="time" ${q.type === 'time' ? 'selected' : ''}>時間</option>
+                  <option value="number" ${q.type === 'number' ? 'selected' : ''}>數字</option>
+                  <option value="email" ${q.type === 'email' ? 'selected' : ''}>電子郵件</option>
+                  <option value="file" ${q.type === 'file' ? 'selected' : ''}>檔案上傳</option>
+                </select>
+                <label>
+                  必填
+                  <input type="checkbox" ${q.required ? 'checked' : ''} onchange="toggleRequired('${q.id}', this.checked)">
+                </label>
+              </div>
+          
+              <!-- 圖片上傳區域 -->
+              <div class="image-upload-container">
+                <input type="file" id="image-${q.id}" style="display:none" accept="image/*" onchange="uploadQuestionImage('${q.id}', event)">
+                <button type="button" onclick="document.getElementById('image-${q.id}').click()">
+                  ${q.image ? '更換圖片' : '上傳圖片'}
+                </button>
+                ${q.image ? `
+                  <div>
+                    <img src="${q.image}" alt="題目圖片" style="max-width: 200px; max-height: 200px; margin-top: 10px;">
+                    <button type="button" onclick="removeQuestionImage('${q.id}')">刪除圖片</button>
+                  </div>
+            `     : ''}
+              </div>
+          
+              ${renderValidationOptions(q)}
+          
+              <div class="options-container">
+                ${renderOptions(q)}
+              </div>
+              <button type="button" onclick="removeQuestion('${q.id}')">刪除題目</button>
             </div>
-            <button type="button" onclick="removeQuestion('${q.id}')">刪除題目</button>
           </div>
-        `;
+    `    ;
         container.innerHTML += questionHtml;
       });
-        initSortable();
+      initSortable();
     }
+
+    // 上傳題目圖片
+    async function uploadQuestionImage(questionId, event) {
+      const file = event.target.files[0];
+      if (!file) return;
+  
+      // 檢查檔案類型
+      if (!file.type.startsWith('image/')) {
+        alert('請上傳圖片檔案');
+        return;
+      }
+  
+      // 檢查檔案大小 (限制為 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('圖片大小不能超過 5MB');
+        return;
+      }
+  
+      try {
+        // 建立 FormData 物件
+        const formData = new FormData();
+        formData.append('image', file);
+    
+        // 上傳圖片到伺服器
+        const token = localStorage.getItem('token');
+        const res = await fetch('http://localhost:5000/api/upload', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+    
+        if (res.ok) {
+          const data = await res.json();
+          console.log('上傳成功:', data);
+      
+          // 測試圖片 URL
+          try {
+            await testImageUrl(data.imageUrl);
+            console.log('圖片 URL 有效');
+          } catch (e) {
+            console.error('圖片 URL 無效');
+          }
+      
+          // 更新題目的圖片屬性
+          const question = questions.find(q => q.id === questionId);
+          question.image = data.imageUrl;
+          renderQuestions();
+        } else {
+          const error = await res.json();
+          alert(`上傳圖片失敗：${error.error || '未知錯誤'}`);
+        }
+      } catch (err) {
+        console.error('上傳圖片時發生錯誤:', err);
+        alert('伺服器錯誤，請稍後再試');
+      }
+    }
+
+    // 刪除題目圖片
+    function removeQuestionImage(questionId) {
+      const question = questions.find(q => q.id === questionId);
+      question.image = null;
+      renderQuestions();
+    }
+
+    // 測試圖片 URL
+    function testImageUrl(url) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(true);
+        img.onerror = () => reject(false);
+        img.src = url;
+      });
+    }
+
+    // 初始化 Sortable
     function initSortable() {
       const container = document.getElementById('questionsContainer');
       if (!container) return;
@@ -193,6 +305,45 @@
         return ''; // 簡答題和詳答題不需要選項
       }
     }
+
+    // 渲染驗證選項
+    function renderValidationOptions(question) {
+      if (question.type === 'number') {
+        return `
+          <div class="validation-options">
+            <label>最小值:
+              <input type="number" value="${question.validation?.minValue || ''}" 
+                onchange="updateValidation('${question.id}', 'minValue', this.value)">
+            </label>
+            <label>最大值:
+              <input type="number" value="${question.validation?.maxValue || ''}" 
+                onchange="updateValidation('${question.id}', 'maxValue', this.value)">
+            </label>
+          </div>
+    `    ;
+      } else if (question.type === 'text' || question.type === 'textarea') {
+        return `
+          <div class="validation-options">
+            <label>最少字數:
+              <input type="number" value="${question.validation?.minLength || ''}" 
+                onchange="updateValidation('${question.id}', 'minLength', this.value)">
+            </label>
+            <label>最多字數:
+              <input type="number" value="${question.validation?.maxLength || ''}" 
+                onchange="updateValidation('${question.id}', 'maxLength', this.value)">
+            </label>
+          </div>
+    `    ;
+      } else if (question.type === 'email') {
+        return `
+          <div class="validation-options">
+            <p>將驗證電子郵件格式</p>
+          </div>
+    `    ;
+      }
+      return '';
+    }
+
     
     // 初始化
     renderPaginationControls();
@@ -203,11 +354,27 @@
       const title = document.getElementById('title').value;
       const description = document.getElementById('description').value;
 
+      // 檢查必填項
+      const emptyRequiredQuestions = questions.filter(q => q.required && !q.text);
+      if (emptyRequiredQuestions.length > 0) {
+        alert('有必填題目尚未填寫題目描述！');
+        return;
+      }
+
       // 將問卷資料存入 localStorage
       localStorage.setItem('previewSurvey', JSON.stringify({ title, description, questions }));
 
       // 跳轉到 create.html
       window.location.href = 'create.html?preview=true';
+    }
+
+    // 更新驗證設置
+    function updateValidation(questionId, validationType, value) {
+      const question = questions.find(q => q.id === questionId);
+      if (!question.validation) {
+        question.validation = {};
+      }
+      question.validation[validationType] = value;
     }
 
     // 更新題目文字
@@ -219,15 +386,26 @@
     // 更新題目類型
     function updateQuestionType(questionId, type) {
       const question = questions.find(q => q.id === questionId);
+      const oldImage = question.image; // 保存原有圖片
       question.type = type;
 
-    // 清空選項（僅適用於需要選項的題型）
-    if (type !== 'single' && type !== 'multiple' && type !== 'dropdown') {
-      question.options = [];
-    }
+      // 清空選項（僅適用於需要選項的題型）
+      if (type !== 'single' && type !== 'multiple' && type !== 'dropdown') {
+        question.options = [];
+      }
 
-  renderQuestions();
-}
+      // 重置驗證設置，但保留圖片
+      question.validation = {
+        minValue: '',
+        maxValue: '',
+        minLength: '',
+        maxLength: '',
+        pattern: ''
+      };
+      question.image = oldImage; // 恢復圖片
+
+      renderQuestions();
+    }
 
     // 切換必填
     function toggleRequired(questionId, required) {
@@ -261,106 +439,225 @@
       renderQuestions();
     }
 
-// 儲存問卷
-async function saveSurvey() {
-  const title = document.getElementById('title').value;
-  const description = document.getElementById('description').value;
-  const token = localStorage.getItem('token');
-  const userId = localStorage.getItem('userId'); // 若後端需要
+    // 儲存問卷
+    async function saveSurvey() {
+      const title = document.getElementById('title').value;
+      const description = document.getElementById('description').value;
+      const token = localStorage.getItem('token');
+      const userId = localStorage.getItem('userId');
 
-  try {
-    const res = await fetch('http://localhost:5000/api/surveys/save', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({        
-        title,
-        description,
-        questions,
-        userId // 若後端需要
-        }),
-    });
-
-    if (res.ok) {
-      const survey = await res.json();
-      alert('問卷儲存成功！');
-      window.location.href = 'dashboard.html'; 
-    } else {
-      const error = await res.json();
-      alert(`儲存問卷失敗！原因：${error.error || '未知錯誤'}`);
-    }
-  } catch (err) {
-    console.error('儲存問卷時發生錯誤:', err);
-    alert('伺服器錯誤，請稍後再試');
-  }
-}
-
-  // 匯出問卷
-  function exportSurvey() {
-    const title = document.getElementById('title').value;
-    const description = document.getElementById('description').value;
-    // 假設 questions 是全域變數
-    const data = { title, description, questions };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = (title || 'survey') + '.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
-
-  // 匯入問卷
-  function importSurvey(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(e) {
       try {
-        const data = JSON.parse(e.target.result);
-        document.getElementById('title').value = data.title || '';
-        document.getElementById('description').value = data.description || '';
-        questions = Array.isArray(data.questions) ? data.questions : [];
-        // 若有即時顯示功能，需同步更新
-        if (typeof updateLiveTitle === 'function') updateLiveTitle(data.title || '');
-        if (typeof updateLiveDescription === 'function') updateLiveDescription(data.description || '');
-        renderQuestions();
+        const res = await fetch('http://localhost:5000/api/surveys', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({        
+            title,
+            description,
+            questions,
+            userId
+          }),
+        });
+
+        if (res.ok) {
+          const survey = await res.json();
+          alert('問卷儲存成功！');
+          window.location.href = 'dashboard.html'; 
+        } else {
+          const error = await res.json();
+          alert(`儲存問卷失敗！原因：${error.error || '未知錯誤'}`);
+        }
       } catch (err) {
-        alert('匯入失敗，檔案格式錯誤');
+        console.error('儲存問卷時發生錯誤:', err);
+        alert('伺服器錯誤，請稍後再試');
       }
-    };
-    reader.readAsText(file);
-    // 清空 input 以便下次可重新選同一檔案
-    event.target.value = '';
-  }
-
-  function loadSurvey() {
-  const preview = localStorage.getItem('previewSurvey');
-  if (preview) {
-    try {
-      const data = JSON.parse(preview);
-      document.getElementById('title').value = data.title || '';
-      document.getElementById('description').value = data.description || '';
-      questions = Array.isArray(data.questions) ? data.questions : [];
-      if (typeof updateLiveTitle === 'function') updateLiveTitle(data.title || '');
-      if (typeof updateLiveDescription === 'function') updateLiveDescription(data.description || '');
-      renderQuestions();
-      // 清除暫存，避免下次誤載
-      localStorage.removeItem('previewSurvey');
-    } catch (e) {
-      // 若解析失敗則忽略
     }
-  }
-}
 
-    // 初始化
-    renderPaginationControls();
-    renderQuestions();
-    loadSurvey();
+    // 匯出問卷
+    function exportSurvey() {
+      const title = document.getElementById('title').value;
+      const description = document.getElementById('description').value;
+      // 假設 questions 是全域變數
+      const data = { title, description, questions };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = (title || 'survey') + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // 匯入問卷
+    function importSurvey(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          document.getElementById('title').value = data.title || '';
+          document.getElementById('description').value = data.description || '';
+          questions = Array.isArray(data.questions) ? data.questions : [];
+          // 若有即時顯示功能，需同步更新
+          if (typeof updateLiveTitle === 'function') updateLiveTitle(data.title || '');
+          if (typeof updateLiveDescription === 'function') updateLiveDescription(data.description || '');
+          renderQuestions();
+        } catch (err) {
+          alert('匯入失敗，檔案格式錯誤');
+        }
+      };
+      reader.readAsText(file);
+      // 清空 input 以便下次可重新選同一檔案
+      event.target.value = '';
+    }
+  
+    // 加載問卷
+    function loadSurvey() {
+      const preview = localStorage.getItem('previewSurvey');
+      if (preview) {
+        try {
+          const data = JSON.parse(preview);
+          document.getElementById('title').value = data.title || '';
+          document.getElementById('description').value = data.description || '';
+          questions = Array.isArray(data.questions) ? data.questions : [];
+          if (typeof updateLiveTitle === 'function') updateLiveTitle(data.title || '');
+          if (typeof updateLiveDescription === 'function') updateLiveDescription(data.description || '');
+          renderQuestions();
+          // 清除暫存，避免下次誤載
+          localStorage.removeItem('previewSurvey');
+        } catch (e) {
+          // 若解析失敗則忽略
+        }
+      }
+    }
+
+    // 檢查是否是編輯模式
+    async function checkEditMode() {
+      const isEdit = new URLSearchParams(window.location.search).get('edit') === 'true';
+      if (isEdit) {
+        isEditMode = true;
+        editingSurveyId = localStorage.getItem('editingSurveyId');
+        console.log('編輯模式，問卷ID:', editingSurveyId);
+        
+        if (editingSurveyId) {
+          await loadSurveyForEditing(editingSurveyId);
+        }
+      }
+    }
+  
+    // 加載問卷數據用於編輯
+    async function loadSurveyForEditing(surveyId) {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('請先登入');
+        window.location.href = 'login.html';
+        return;
+      }
+      
+      try {
+        console.log('正在載入問卷:', surveyId);
+        const res = await fetch(`${API_URL}/${surveyId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      
+        if (res.ok) {
+          const survey = await res.json();
+          console.log('載入的問卷數據:', survey);
+          
+          // 填充表單
+          document.getElementById('title').value = survey.title || '';
+          document.getElementById('description').value = survey.description || '';
+        
+          // 更新即時顯示
+          updateLiveTitle(survey.title || '');
+          updateLiveDescription(survey.description || '');
+        
+          // 載入問題
+          if (Array.isArray(survey.questions)) {
+            questions = survey.questions;
+
+            // 確保每個問題都有 id
+            questions = questions.map((q, index) => {
+              if (!q.id) {
+                q.id = `q${index}`;
+              }
+              return q;
+            });
+            // 確定總頁數
+            const pages = questions.map(q => q.page || 1);
+            const maxPage = Math.max(...questions.map(q => q.page || 1), 1);
+            totalPages = maxPage;
+            currentPage = 1;
+          
+            renderPaginationControls();
+            renderQuestions();
+        } else {
+        console.log('問卷沒有題目或題目格式不正確');
+        questions = [];
+      }
+        
+          // 修改儲存按鈕行為
+          document.getElementById('saveButton').onclick = function() {
+            updateSurvey(surveyId);
+          };
+        } else {
+          console.error('載入問卷失敗:', await res.text());
+          alert('無法載入問卷數據');
+        }
+      } catch (err) {
+        console.error('載入問卷失敗:', err);
+        alert('載入問卷失敗');
+      }
+    }
+  
+    // 更新問卷
+    async function updateSurvey(surveyId) {
+      const title = document.getElementById('title').value;
+      const description = document.getElementById('description').value;
+      const token = localStorage.getItem('token');
+    
+      try {
+        console.log('正在更新問卷:', surveyId);
+        const res = await fetch(`${API_URL}/${surveyId}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            title,
+            description,
+            questions
+          })
+        });
+      
+        if (res.ok) {
+          alert('問卷更新成功！');
+          window.location.href = 'dashboard.html';
+        } else {
+          const error = await res.json();
+          alert(`更新問卷失敗：${error.error || '未知錯誤'}`);
+        }
+      } catch (err) {
+        console.error('更新問卷時發生錯誤:', err);
+        alert('伺服器錯誤，請稍後再試');
+      }
+    }
+  
+    // 頁面載入時執行
+    document.addEventListener('DOMContentLoaded', async function() {
+      await checkEditMode();
+      if (!isEditMode) {
+        loadSurvey();
+      }
+    });
   </script>
 </body>
 </html>

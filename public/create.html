@@ -10,7 +10,7 @@
   <p id="surveyDescription"></p>
   <div id="questionsContainer"></div>
   <button type="button" onclick="goBack()">返回更改</button>
-  <button type="button" onclick="saveSurvey()">儲存問卷</button>
+  <button type="button" onclick="saveSurvey()">新增並儲存問卷</button>
 
   <script>
     // 檢查是否是預覽模式
@@ -38,29 +38,38 @@
 
     // 渲染題目選項
     function renderQuestionOptions(question) {
+      let html = '';
+  
+      // 先顯示題目圖片（如果有）
+      if (question.image) {
+        html += `<div><img src="${question.image}" alt="題目圖片" style="max-width: 100%; margin-bottom: 10px;"></div>`;
+      }
+  
+      // 顯示題目類型的選項
       if (question.type === 'single' || question.type === 'multiple') {
-        return question.options.map(opt => `
+        html += question.options.map(opt => `
           <div>
             <input type="${question.type === 'single' ? 'radio' : 'checkbox'}" disabled>
             <label>${opt}</label>
           </div>
-        `).join('');
+    `    ).join('');
       } else if (question.type === 'dropdown') {
-        return `
+        html += `
           <select disabled>
             ${question.options.map(opt => `<option>${opt}</option>`).join('')}
           </select>
-        `;
+    `    ;
       } else if (question.type === 'text') {
-        return `<input type="text" disabled>`;
+        html += `<input type="text" disabled>`;
       } else if (question.type === 'textarea') {
-        return `<textarea disabled></textarea>`;
+        html += `<textarea disabled></textarea>`;
       } else if (question.type === 'date') {
-        return `<input type="date" disabled>`;
+        html += `<input type="date" disabled>`;
       } else if (question.type === 'time') {
-        return `<input type="time" disabled>`;
+        html += `<input type="time" disabled>`;
       }
-      return '';
+  
+      return html;
     }
 
     // 返回更改
@@ -72,36 +81,61 @@
     async function saveSurvey() {
       const survey = JSON.parse(localStorage.getItem('previewSurvey'));
       const token = localStorage.getItem('token');
-      const userId = localStorage.getItem('userId'); // 若後端需要
+      const userId = localStorage.getItem('userId');
 
       try {
-        const res = await fetch('http://localhost:5000/api/surveys/save', {
+        // 檢查問卷數據是否完整
+        if (!survey || !survey.title || !survey.description) {
+          alert('問卷數據不完整，請返回編輯頁面重新操作');
+          return;
+        }
+
+        // 檢查問題數據
+        if (!Array.isArray(survey.questions) || survey.questions.length === 0) {
+          alert('問卷必須包含至少一個問題');
+          return;
+        }
+
+        // 使用與 new.html 相同的 API 端點
+        const res = await fetch('http://localhost:5000/api/surveys', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-        body: JSON.stringify({
-          title: survey.title,
-          description: survey.description,
-          questions: survey.questions,
-          userId // 若後端需要
-        }),
-      });
+          body: JSON.stringify({
+            title: survey.title,
+            description: survey.description,
+            questions: survey.questions,
+            // userId
+          }),
+        });
 
         if (res.ok) {
           const savedSurvey = await res.json();
           alert('問卷儲存成功！');
-          window.location.href = 'dashboard.html'; // 儲存後跳轉到儀表板
+          window.location.href = 'dashboard.html';
         } else {
-          const error = await res.json();
-          alert(`儲存問卷失敗！原因：${error.error || '未知錯誤'}`);
+          // 嘗試獲取詳細錯誤信息
+          let errorMessage = '未知錯誤';
+          try {
+            const error = await res.json();
+            errorMessage = error.error || error.message || '未知錯誤';
+            if (error.details) {
+              errorMessage += `\n詳細信息: ${error.details}`;
+            }
+          } catch (e) {
+            errorMessage = await res.text() || '未知錯誤';
+          }
+      
+          alert(`儲存問卷失敗！\n原因：${errorMessage}`);
         }
       } catch (err) {
         console.error('儲存問卷時發生錯誤:', err);
-        alert('伺服器錯誤，請稍後再試');
+        alert(`伺服器錯誤，請稍後再試\n錯誤詳情: ${err.message}`);
       }
     }
+
   </script>
 </body>
 </html>

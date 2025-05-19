@@ -38,7 +38,7 @@ function auth(req, res, next) {
 // 新增問卷
 router.post('/', auth, async (req, res) => {
   try {
-    const { title, description } = req.body;
+    const { title, description, questions } = req.body;
 
     // 新增日誌檢查請求體
     console.log('收到的新增問卷請求體:', req.body);
@@ -47,12 +47,19 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ error: '標題和描述是必填的' });
     }
 
-    const survey = new Survey({
-      user: req.userId, // 從驗證中介層獲取使用者 ID
+    // 創建問卷對象
+    const surveyData = {
+      user: req.userId,
       title,
-      description,
-    });
+      description
+    };
 
+    // 如果有問題數據，添加到問卷對象
+    if (Array.isArray(questions) && questions.length > 0) {
+      surveyData.questions = questions;
+    }
+
+    const survey = new Survey(surveyData);
     await survey.save();
 
     // 新增日誌檢查保存的問卷
@@ -61,7 +68,11 @@ router.post('/', auth, async (req, res) => {
     res.status(201).json({ message: '問卷新增成功', survey });
   } catch (err) {
     console.error('新增問卷失敗:', err);
-    res.status(500).json({ error: '伺服器錯誤' });
+    res.status(400).json({ 
+      error: '新增問卷失敗',
+      message: err.message,
+      details: err.stack
+    });
   }
 });
 
@@ -71,7 +82,7 @@ router.post('/save', auth, async (req, res) => {
     const { title, description, questions } = req.body;
 
     // 新增日誌
-    console.log('收到的儲存問卷請求:', req.body);
+    console.log('收到的儲存問卷請求:', JSON.stringify(req.body, null, 2));
     console.log('使用者 ID:', req.userId);
 
     // 確保 req.userId 存在
@@ -79,18 +90,59 @@ router.post('/save', auth, async (req, res) => {
       return res.status(400).json({ error: '使用者未驗證' });
     }
 
+    // 檢查 questions 是否為數組
+    if (!Array.isArray(questions)) {
+      return res.status(400).json({ 
+        error: '問題格式不正確，應為數組',
+        details: `收到的類型: ${typeof questions}`
+      });
+    }
+
+    // 檢查每個問題的格式
+    for (const q of questions) {
+      if (!q.id || !q.type || !q.text) {
+        return res.status(400).json({ 
+          error: '問題缺少必要字段 (id, type, text)',
+          details: JSON.stringify(q)
+        });
+      }
+    }
+
     const survey = new Survey({
-      user: req.userId, // 正確取得 userId
+      user: req.userId,
       title,
       description,
-      questions // 如果你的 schema 有 questions 欄位
+      questions
     });
 
     await survey.save();
-    res.status(201).json({ message: '問卷儲存成功', survey }); // 返回新增的問卷
+    res.status(201).json({ message: '問卷儲存成功', survey });
   } catch (err) {
     console.error('儲存問卷失敗:', err);
-    res.status(400).json({ error: err.message }); // 返回錯誤訊息
+    
+    // 提供更詳細的錯誤信息
+    let errorMessage = err.message;
+    let errorDetails = '';
+    
+    // 處理驗證錯誤
+    if (err.name === 'ValidationError') {
+      errorMessage = '問卷數據驗證失敗';
+      errorDetails = Object.keys(err.errors).map(key => {
+        return `${key}: ${err.errors[key].message}`;
+      }).join('; ');
+    }
+    
+    // 處理 CastError
+    if (err.name === 'CastError') {
+      errorMessage = `數據類型錯誤: ${err.path}`;
+      errorDetails = `預期類型: ${err.kind}, 實際值: ${err.value}`;
+    }
+    
+    res.status(400).json({ 
+      error: '儲存問卷失敗',
+      message: errorMessage,
+      details: errorDetails || err.stack
+    });
   }
 });
 
@@ -120,15 +172,63 @@ router.delete('/:id', auth, async (req, res) => {
 // 編輯問卷
 router.put('/:id', auth, async (req, res) => {
   try {
+    console.log('編輯問卷，ID:', req.params.id, '用戶ID:', req.userId);
+    
+    // 檢查請求體
+    if (!req.body) {
+      return res.status(400).json({ error: '請求體為空' });
+    }
+    
+    if (!req.body.title || !req.body.description) {
+      return res.status(400).json({ error: '標題和描述是必填的' });
+    }
+    
+    // 檢查 questions 是否為數組
+    if (!Array.isArray(req.body.questions)) {
+      return res.status(400).json({ 
+        error: '問題格式不正確，應為數組',
+        details: `收到的類型: ${typeof req.body.questions}`
+      });
+    }
+    
+    // 檢查每個問題的格式
+    for (const q of req.body.questions) {
+      if (!q.id || !q.type || !q.text) {
+        return res.status(400).json({ 
+          error: '問題缺少必要字段 (id, type, text)',
+          details: JSON.stringify(q)
+        });
+      }
+    }
+    
+    // 使用 $set 操作符明確指定要更新的字段
+    const updateData = {
+      $set: {
+        title: req.body.title,
+        description: req.body.description,
+        questions: req.body.questions
+      }
+    };
+    
     const survey = await Survey.findOneAndUpdate(
-      { _id: req.params.id, user: req.user.id }, // 確保只能編輯自己的問卷
-      req.body,
-      { new: true } // 返回更新後的問卷
+      { _id: req.params.id, user: req.userId },
+      updateData,
+      { new: true }
     );
-    if (!survey) return res.status(404).json({ error: '問卷不存在或無權限編輯' });
+    
+    if (!survey) {
+      return res.status(404).json({ error: '問卷不存在或無權限編輯' });
+    }
+    
+    console.log('更新後的問卷:', survey);
     res.json(survey);
   } catch (err) {
-    res.status(400).json({ error: err.message }); // 錯誤處理
+    console.error('編輯問卷失敗:', err);
+    res.status(400).json({ 
+      error: '編輯問卷失敗',
+      message: err.message,
+      details: err.stack
+    });
   }
 });
 
@@ -159,11 +259,16 @@ router.get('/:id/results', auth, async (req, res) => {
 // 取得單份問卷
 router.get('/:id', auth, async (req, res) => {
   try {
-    const survey = await Survey.findOne({ _id: req.params.id, user: req.user.id }); // 確保只能查看自己的問卷
+    console.log('獲取問卷詳情，ID:', req.params.id, '用戶ID:', req.userId);
+    
+    const survey = await Survey.findOne({ _id: req.params.id, user: req.userId }); // 修改為 req.userId
     if (!survey) return res.status(404).json({ error: '問卷不存在或無權限查看' });
+    
+    console.log('找到問卷:', survey);
     res.json(survey);
   } catch (err) {
-    res.status(400).json({ error: err.message }); // 錯誤處理
+    console.error('取得單份問卷失敗:', err);
+    res.status(400).json({ error: err.message });
   }
 });
 

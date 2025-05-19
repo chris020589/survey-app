@@ -7,10 +7,13 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const path = require('path');
+
 
 // 路由與中介層
 const surveyRoutes = require('./routes/surveys');
 const { auth, router: authRoutes } = require('./routes/auth'); // 引入 auth 函數和路由
+const uploadRoutes = require('./routes/upload');
 
 const User = require('./models/User');
 const Survey = require('./models/Survey');
@@ -24,15 +27,19 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 日誌檢查請求體
-app.use((req, res, next) => {
-  console.log('收到的請求體:', req.body);
-  next();
-});
-
 // 路由
 app.use('/api/auth', authRoutes);
 app.use('/api/surveys', surveyRoutes);
+app.use('/api/upload', uploadRoutes);
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// 日誌檢查請求體
+app.use((req, res, next) => {
+  if (req.method === 'POST' && !req.is('multipart/form-data')) {
+    console.log('收到的請求體:', req.body);
+  }
+  next();
+});
 
 // 測試環境變數是否正確載入
 // console.log('SECRET_KEY:', process.env.SECRET_KEY); 
@@ -54,10 +61,10 @@ app.listen(PORT, () => {
   console.log(`🚀 伺服器啟動於 http://localhost:${PORT}`);
 });
 
-//前端
+// 前端
 app.use(express.static('public'));
 
-// ✅ 註冊
+// 註冊
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -74,7 +81,7 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-// ✅ 登入
+// 登入
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -129,7 +136,7 @@ app.put('/api/surveys/:id', auth, async (req, res) => {
     const { title, description } = req.body;
     const survey = await Survey.findOneAndUpdate(
       { _id: req.params.id, user: req.userId }, // 確保只能編輯自己的問卷
-      { title, description },
+      { title, description, questions },
       { new: true } // 返回更新後的問卷
     );
 
@@ -144,14 +151,14 @@ app.put('/api/surveys/:id', auth, async (req, res) => {
   }
 });
 
-// ✅ 填寫問卷
+// 填寫問卷
 app.post('/api/surveys/:id/answers', auth, async (req, res) => {
   const answer = new Answer({ survey: req.params.id, ...req.body });
   await answer.save();
   res.json({ message: '填寫成功' }); // 返回 JSON 格式
 });
 
-// ✅ 查看問卷結果
+// 查看問卷結果
 app.get('/api/surveys/:id/results', auth, async (req, res) => {
   const results = await Answer.aggregate([
     { $match: { survey: new mongoose.Types.ObjectId(req.params.id) } },
@@ -182,18 +189,28 @@ app.get('/api/surveys', auth, async (req, res) => {
 // 取得單份問卷
 app.get('/api/surveys/:id', auth, async (req, res) => {
   try {
+    console.log('獲取問卷詳情，ID:', req.params.id, '用戶ID:', req.userId);
+    
+    // 確保 ID 格式正確
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: '無效的問卷ID格式' });
+    }
+    
     const survey = await Survey.findOne({ _id: req.params.id, user: req.userId });
+    
     if (!survey) {
       return res.status(404).json({ error: '問卷不存在或無權限查看' });
     }
-    res.json(survey); // 返回問卷詳細資訊
+    
+    console.log('找到問卷:', survey);
+    res.json(survey);
   } catch (err) {
     console.error('取得單份問卷失敗:', err);
     res.status(500).json({ error: '伺服器錯誤' });
   }
 });
 
-// ✅ 取得單一問卷統計
+// 取得單一問卷統計
 app.get('/api/surveys/:id/stats', auth, async (req, res) => {
   try {
     // 確保問卷存在且屬於該使用者
@@ -216,7 +233,7 @@ app.get('/api/surveys/:id/stats', auth, async (req, res) => {
   }
 });
 
-// ✅ 全域錯誤處理中介層
+// 全域錯誤處理中介層
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: '伺服器錯誤' }); // 返回 JSON 格式
