@@ -4,6 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>問卷預覽</title>
+  <style>
+  .validation-info {
+    font-size: 0.9em;
+    color: #666;
+    margin-top: 5px;
+    font-style: italic;
+  }
+</style>
 </head>
 <body>
   <h1 id="surveyTitle"></h1>
@@ -39,12 +47,29 @@
     // 渲染題目選項
     function renderQuestionOptions(question) {
       let html = '';
-  
+
       // 先顯示題目圖片（如果有）
       if (question.image) {
         html += `<div><img src="${question.image}" alt="題目圖片" style="max-width: 100%; margin-bottom: 10px;"></div>`;
       }
-  
+
+      // 顯示驗證信息
+      if (question.type === 'number' && (question.validation?.minValue || question.validation?.maxValue)) {
+        html += `<p class="validation-info">`;
+        if (question.validation.minValue && question.validation.maxValue) {
+          html += `數字範圍限制: ${question.validation.minValue} - ${question.validation.maxValue}`;
+        } else if (question.validation.minValue) {
+          html += `最小值: ${question.validation.minValue}`;
+        } else if (question.validation.maxValue) {
+          html += `最大值: ${question.validation.maxValue}`;
+        }
+        html += `</p>`;
+      } else if ((question.type === 'text' || question.type === 'textarea') && question.validation?.maxLength) {
+        html += `<p class="validation-info">字數限制: ${question.validation?.minLength || '0'} - ${question.validation.maxLength} 字</p>`;
+      } else if (question.type === 'multiple' && question.validation?.maxChoices) {
+        html += `<p class="validation-info">最多可選擇 ${question.validation.maxChoices} 項</p>`;
+      }
+
       // 顯示題目類型的選項
       if (question.type === 'single' || question.type === 'multiple') {
         html += question.options.map(opt => `
@@ -52,25 +77,38 @@
             <input type="${question.type === 'single' ? 'radio' : 'checkbox'}" disabled>
             <label>${opt}</label>
           </div>
-    `    ).join('');
+        `).join('');
       } else if (question.type === 'dropdown') {
         html += `
-          <select disabled>
+          <select disabled style="display: block; width: 100%; padding: 8px; margin: 5px 0;">
+            <option>請選擇...</option>
             ${question.options.map(opt => `<option>${opt}</option>`).join('')}
           </select>
-    `    ;
+        `;
       } else if (question.type === 'text') {
-        html += `<input type="text" disabled>`;
+        html += `<input type="text" disabled style="display: block; width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ccc;">`;
       } else if (question.type === 'textarea') {
-        html += `<textarea disabled></textarea>`;
+        html += `<textarea disabled style="display: block; width: 100%; height: 100px; padding: 8px; margin: 5px 0; border: 1px solid #ccc;"></textarea>`;
       } else if (question.type === 'date') {
-        html += `<input type="date" disabled>`;
+        html += `<input type="date" disabled style="display: block; width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ccc;">`;
       } else if (question.type === 'time') {
-        html += `<input type="time" disabled>`;
+        html += `<input type="time" disabled style="display: block; width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ccc;">`;
+      } else if (question.type === 'number') {
+        html += `<input type="number" disabled style="display: block; width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ccc;">`;
+      } else if (question.type === 'email') {
+        html += `<input type="email" disabled style="display: block; width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ccc;">`;
+      } else if (question.type === 'file') {
+        html += `
+          <div style="display: block; width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ccc; background-color: #f8f8f8;">
+            <span>選擇檔案</span>
+            <span style="margin-left: 10px; color: #888;">未選擇任何檔案</span>
+          </div>
+        `;
       }
-  
+
       return html;
     }
+
 
     // 返回更改
     function goBack() {
@@ -95,6 +133,13 @@
           alert('問卷必須包含至少一個問題');
           return;
         }
+
+        // 確保每個問題的驗證信息都被保存
+        survey.questions.forEach(question => {
+          if (!question.validation) {
+            question.validation = {};
+          }
+        });
 
         // 使用與 new.html 相同的 API 端點
         const res = await fetch('http://localhost:5000/api/surveys', {
@@ -135,6 +180,7 @@
         alert(`伺服器錯誤，請稍後再試\n錯誤詳情: ${err.message}`);
       }
     }
+
 
   </script>
 </body>

@@ -32,6 +32,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/surveys', surveyRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(express.static(path.join(__dirname, '../public')));
 
 // 日誌檢查請求體
 app.use((req, res, next) => {
@@ -61,8 +62,46 @@ app.listen(PORT, () => {
   console.log(`🚀 伺服器啟動於 http://localhost:${PORT}`);
 });
 
-// 前端
-app.use(express.static('public'));
+// 處理前端路由 - 確保問卷填寫頁面可以被訪問
+app.get('/fill.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/fill.html'));
+});
+
+// 公開問卷API - 不需要驗證
+app.get('/api/surveys/public/:id', async (req, res) => {
+  try {
+    // 確保 ID 格式正確
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: '無效的問卷ID格式' });
+    }
+    
+    const survey = await Survey.findById(req.params.id);
+    
+    if (!survey) {
+      return res.status(404).json({ error: '問卷不存在' });
+    }
+    
+    res.json(survey);
+  } catch (err) {
+    console.error('獲取公開問卷失敗:', err);
+    res.status(500).json({ error: '伺服器錯誤' });
+  }
+});
+
+// 公開提交問卷答案 - 不需要驗證
+app.post('/api/surveys/:id/answers', async (req, res) => {
+  try {
+    const answer = new Answer({ 
+      survey: new mongoose.Types.ObjectId(req.params.id), 
+      answers: req.body.answers 
+    });
+    await answer.save();
+    res.json({ message: '填寫成功' });
+  } catch (err) {
+    console.error('提交答案失敗:', err);
+    res.status(500).json({ error: '伺服器錯誤', details: err.message });
+  }
+});
 
 // 註冊
 app.post('/api/auth/register', async (req, res) => {
@@ -151,20 +190,112 @@ app.put('/api/surveys/:id', auth, async (req, res) => {
   }
 });
 
-// 填寫問卷
-app.post('/api/surveys/:id/answers', auth, async (req, res) => {
+// 填寫問卷 (需要驗證的版本)
+app.post('/api/surveys/:id/answers/auth', auth, async (req, res) => {
   const answer = new Answer({ survey: req.params.id, ...req.body });
   await answer.save();
   res.json({ message: '填寫成功' }); // 返回 JSON 格式
 });
 
-// 查看問卷結果
-app.get('/api/surveys/:id/results', auth, async (req, res) => {
-  const results = await Answer.aggregate([
-    { $match: { survey: new mongoose.Types.ObjectId(req.params.id) } },
-    { $group: { _id: "$age", count: { $sum: 1 } } },
-  ]);
-  res.json(results); // 返回 JSON 格式
+// 修改查看問卷結果
+app.get('/api/surveys/:id/stats', auth, async (req, res) => {
+  try {
+    // 確保問卷存在且屬於該使用者
+    const survey = await Survey.findOne({ _id: req.params.id, user: req.userId });
+    if (!survey) {
+      return res.status(404).json({ error: '問卷不存在或無權限查看統計' });
+    }
+
+    // 獲取問卷的所有答案
+    const answers = await Answer.find({ survey: req.params.id });
+    
+    // 如果沒有答案，返回空數組
+    if (!answers || answers.length === 0) {
+      return res.json([]);
+    }
+
+    // 創建結果對象，按問題ID分組
+    const resultsMap = {};
+    
+    // 遍歷所有答案
+    answers.forEach(answer => {
+      if (answer.answers && Array.isArray(answer.answers)) {
+        answer.answers.forEach(ans => {
+          // 初始化問題的結果對象
+          if (!resultsMap[ans.questionId]) {
+            // 找到對應的問題
+            const question = survey.questions.find(q => q.id === ans.questionId);
+            resultsMap[ans.questionId] = {
+              questionId: ans.questionId,
+              questionText: question ? question.text : '未知問題',
+              questionType: question ? question.type : 'unknown',
+              options: {},
+              totalResponses: 0
+            };
+          }
+          
+          // 增加總回答數
+          resultsMap[ans.questionId].totalResponses++;
+          
+          // 處理不同類型的答案
+          if (Array.isArray(ans.answer)) {
+            // 多選題
+            ans.answer.forEach(option => {
+              if (!resultsMap[ans.questionId].options[option]) {
+                resultsMap[ans.questionId].options[option] = 0;
+              }
+              resultsMap[ans.questionId].options[option]++;
+            });
+          } else {
+            // 單選題或其他類型
+            if (!resultsMap[ans.questionId].options[ans.answer]) {
+              resultsMap[ans.questionId].options[ans.answer] = 0;
+            }
+            resultsMap[ans.questionId].options[ans.answer]++;
+          }
+        });
+      }
+    });
+    
+    // 將結果轉換為數組
+    const results = Object.values(resultsMap).map(result => {
+      // 將選項對象轉換為數組
+      const optionsArray = Object.entries(result.options).map(([option, count]) => ({
+        option,
+        count,
+        percentage: Math.round((count / result.totalResponses) * 100)
+      }));
+      
+      return {
+        ...result,
+        options: optionsArray
+      };
+    });
+    
+    res.json(results);
+  } catch (err) {
+    console.error('統計查詢失敗:', err);
+    res.status(500).json({ error: '統計查詢失敗' });
+  }
+});
+
+
+// 添加獲取問卷所有回答
+app.get('/api/surveys/:id/answers', auth, async (req, res) => {
+  try {
+    // 確保問卷存在且屬於該使用者
+    const survey = await Survey.findOne({ _id: req.params.id, user: req.userId });
+    if (!survey) {
+      return res.status(404).json({ error: '問卷不存在或無權限查看回答' });
+    }
+
+    // 獲取所有答案
+    const answers = await Answer.find({ survey: req.params.id });
+    res.json(answers);
+  } catch (err) {
+    console.error('獲取問卷回答失敗:', err);
+    res.status(500).json({ error: '獲取問卷回答失敗' });
+  }
 });
 
 // 獲取所有問卷
@@ -207,29 +338,6 @@ app.get('/api/surveys/:id', auth, async (req, res) => {
   } catch (err) {
     console.error('取得單份問卷失敗:', err);
     res.status(500).json({ error: '伺服器錯誤' });
-  }
-});
-
-// 取得單一問卷統計
-app.get('/api/surveys/:id/stats', auth, async (req, res) => {
-  try {
-    // 確保問卷存在且屬於該使用者
-    const survey = await Survey.findOne({ _id: req.params.id, user: req.userId });
-    if (!survey) {
-      return res.status(404).json({ error: '問卷不存在或無權限查看統計' });
-    }
-
-    // 聚合統計數據
-    const stats = await Answer.aggregate([
-      { $match: { survey: new mongoose.Types.ObjectId(req.params.id) } }, // 匹配指定問卷的答案
-      { $group: { _id: "$answer", count: { $sum: 1 } } }, // 按答案分組並計算數量
-      { $sort: { _id: 1 } } // 按答案排序
-    ]);
-
-    res.json(stats); // 返回統計數據
-  } catch (err) {
-    console.error('統計查詢失敗:', err);
-    res.status(500).json({ error: '統計查詢失敗' }); // 返回 JSON 格式
   }
 });
 

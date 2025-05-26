@@ -42,6 +42,8 @@ const upload = multer({
 
 // 上傳圖片路由
 router.post('/', auth, upload.single('image'), (req, res) => {
+  // 模擬伺服器錯誤
+  // return res.status(500).json({ error: '模擬伺服器錯誤' });
   try {
     console.log('收到文件上傳請求:', req.file);
     

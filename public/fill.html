@@ -4,48 +4,304 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>填寫問卷</title>
+  <style>
+    .question {
+      margin-bottom: 20px;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    .required {
+      color: red;
+    }
+    .answer-container {
+      margin-top: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .validation-info {
+      font-size: 0.9em;
+      color: #666;
+      margin-top: 5px;
+      font-style: italic;
+    }
+  </style>
 </head>
 <body>
   <h1>填寫問卷</h1>
-  <div id="surveyContainer"></div>
-  <button type="button" onclick="submitAnswers()">提交答案</button>
+  <h2 id="surveyTitle">載入中...</h2>
+  <p id="surveyDescription"></p>
+  
+  <div id="questionsContainer"></div>
+  
+  <button type="button" id="submitButton" onclick="submitAnswers()">提交答案</button>
 
   <script>
     const API_URL = 'http://localhost:5000/api/surveys';
-    const surveyId = new URLSearchParams(window.location.search).get('id');
+    let surveyData = null;
+    
+    // 頁面載入時執行
+    document.addEventListener('DOMContentLoaded', async function() {
+      // 從 URL 獲取問卷 ID
+      const urlParams = new URLSearchParams(window.location.search);
+      const surveyId = urlParams.get('id');
   
-    async function loadSurvey() {
+      if (surveyId) {
+        await loadSurvey(surveyId);
+      } else {
+        alert('未提供問卷 ID');
+      }
+    });  
+
+    // 加載問卷數據
+    async function loadSurvey(surveyId) {
       try {
-        const res = await fetch(`${API_URL}/${surveyId}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          }
-        });
+        // 嘗試獲取公開問卷
+        const res = await fetch(`${API_URL}/public/${surveyId}`);
     
         if (!res.ok) {
-          throw new Error('無法載入問卷');
+          throw new Error('無法獲取問卷數據');
         }
     
         const survey = await res.json();
-        const container = document.getElementById('surveyContainer');
-        container.innerHTML = `<h2>${survey.title}</h2><p>${survey.description}</p>`;
+        surveyData = survey;
     
-        survey.questions.forEach((q, index) => {
-          const questionHtml = q.type === 'single'
-            ? `<label>${q.text}</label><br>${q.options.map(opt => `<input type="radio" name="q${index}" value="${opt}">${opt}`).join('<br>')}`
-            : `<label>${q.text}</label><br><textarea name="q${index}"></textarea>`;
-          container.innerHTML += `<div>${questionHtml}</div>`;
-        });
+        // 渲染問卷
+        document.getElementById('surveyTitle').textContent = survey.title;
+        document.getElementById('surveyDescription').textContent = survey.description;
+    
+        // 渲染問題
+        renderQuestions(survey.questions);
       } catch (err) {
-        console.error(err);
-        alert('載入問卷失敗，請稍後再試');
+        console.error('加載問卷失敗:', err);
+        document.getElementById('surveyTitle').textContent = '無法載入問卷';
+        document.getElementById('surveyDescription').textContent = '可能問卷不存在或未公開';
+        document.getElementById('submitButton').style.display = 'none';
+      }
+    }
+    
+    // 渲染問題
+    function renderQuestions(questions) {
+      const container = document.getElementById('questionsContainer');
+      container.innerHTML = '';
+  
+      questions.forEach((q, index) => {
+        const questionHtml = `
+          <div class="question" data-id="${q.id}" data-type="${q.type}">
+            <h3>${index + 1}. ${q.text} ${q.required ? '<span class="required">*</span>' : ''}</h3>
+            ${q.image ? `<img src="${q.image}" alt="題目圖片" style="max-width: 100%;">` : ''}
+            <div class="answer-container">
+              ${renderAnswerInput(q)}
+            </div>
+          </div>
+        `;
+        container.innerHTML += questionHtml;
+      });
+    }
+
+    // 渲染答案輸入框
+    function renderAnswerInput(question) {
+      switch(question.type) {
+        case 'single':
+          return question.options.map((opt, idx) => `
+            <div>
+              <input type="radio" id="${question.id}_${idx}" name="${question.id}" value="${opt}" ${question.required ? 'required' : ''}>
+              <label for="${question.id}_${idx}">${opt}</label>
+            </div>
+          `).join('');
+          
+        case 'multiple':
+          const maxChoicesAttr = question.validation?.maxChoices ? 
+            `data-max-choices="${question.validation.maxChoices}"` : '';
+          const maxChoicesInfo = question.validation?.maxChoices ? 
+            `<p class="validation-info">最多可選擇 ${question.validation.maxChoices} 項</p>` : '';
+          
+          return `
+            <div class="multiple-choice-container" ${maxChoicesAttr}>
+              ${maxChoicesInfo}
+              ${question.options.map((opt, idx) => `
+                <div>
+                  <input type="checkbox" id="${question.id}_${idx}" name="${question.id}" value="${opt}" 
+                    onchange="checkMaxChoices(this)">
+                  <label for="${question.id}_${idx}">${opt}</label>
+                </div>
+              `).join('')}
+            </div>
+          `;
+          
+        case 'dropdown':
+          return `
+            <select id="${question.id}" name="${question.id}" ${question.required ? 'required' : ''}>
+              <option value="">請選擇...</option>
+              ${question.options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+            </select>
+          `;
+          
+        case 'text':
+          return `
+            <input type="text" id="${question.id}" name="${question.id}" 
+              ${question.validation?.minLength ? `minlength="${question.validation.minLength}"` : ''} 
+              ${question.validation?.maxLength ? `maxlength="${question.validation.maxLength}"` : ''} 
+              ${question.required ? 'required' : ''}>
+            ${question.validation?.maxLength ? 
+              `<p class="validation-info">字數限制: ${question.validation?.minLength || '0'} - ${question.validation.maxLength} 字</p>` : ''}
+          `;
+          
+        case 'textarea':
+          return `
+            <textarea id="${question.id}" name="${question.id}" rows="4" 
+              ${question.validation?.minLength ? `minlength="${question.validation.minLength}"` : ''} 
+              ${question.validation?.maxLength ? `maxlength="${question.validation.maxLength}"` : ''} 
+              ${question.required ? 'required' : ''}></textarea>
+            ${question.validation?.maxLength ? 
+              `<p class="validation-info">字數限制: ${question.validation?.minLength || '0'} - ${question.validation.maxLength} 字</p>` : ''}
+          `;
+          
+        case 'date':
+          return `<input type="date" id="${question.id}" name="${question.id}" ${question.required ? 'required' : ''}>`;
+          
+        case 'time':
+          return `<input type="time" id="${question.id}" name="${question.id}" ${question.required ? 'required' : ''}>`;
+          
+        case 'number':
+          return `
+            <input type="number" id="${question.id}" name="${question.id}" 
+              ${question.validation?.minValue ? `min="${question.validation.minValue}"` : ''} 
+              ${question.validation?.maxValue ? `max="${question.validation.maxValue}"` : ''} 
+              ${question.required ? 'required' : ''}>
+            ${question.validation?.minValue && question.validation?.maxValue ? 
+              `<p class="validation-info">數字範圍限制: ${question.validation.minValue} - ${question.validation.maxValue}</p>` : 
+              question.validation?.minValue ? 
+              `<p class="validation-info">最小值: ${question.validation.minValue}</p>` : 
+              question.validation?.maxValue ? 
+              `<p class="validation-info">最大值: ${question.validation.maxValue}</p>` : ''}
+          `;
+          
+        case 'email':
+          return `<input type="email" id="${question.id}" name="${question.id}" ${question.required ? 'required' : ''}>`;
+          
+        case 'file':
+          return `<input type="file" id="${question.id}" name="${question.id}" ${question.required ? 'required' : ''}>`;
+          
+        default:
+          return `<input type="text" id="${question.id}" name="${question.id}" ${question.required ? 'required' : ''}>`;
       }
     }
 
-    loadSurvey();
+
+    // 檢查多選題最多選擇數量
+    function checkMaxChoices(checkbox) {
+      const container = checkbox.closest('.multiple-choice-container');
+      const maxChoices = parseInt(container.dataset.maxChoices);
+      if (!maxChoices) return;
+      
+      const checked = container.querySelectorAll('input[type="checkbox"]:checked');
+      if (checked.length > maxChoices) {
+        checkbox.checked = false;
+        alert('最多只能選擇 ' + maxChoices + ' 項');
+      }
+    }
+
+    // 提交答案
+    async function submitAnswers() {
+      try {
+        // 檢查必填項
+        const requiredQuestions = document.querySelectorAll('.question .required');
+        let allFilled = true;
+        
+        requiredQuestions.forEach(requiredMark => {
+          const questionDiv = requiredMark.closest('.question');
+          const questionId = questionDiv.dataset.id;
+          const questionType = questionDiv.dataset.type;
+          
+          // 根據不同題型檢查是否已填寫
+          if (questionType === 'single') {
+            const radios = questionDiv.querySelectorAll(`input[name="${questionId}"]:checked`);
+            if (radios.length === 0) allFilled = false;
+          } else if (questionType === 'multiple') {
+            const checkboxes = questionDiv.querySelectorAll(`input[name="${questionId}"]:checked`);
+            if (checkboxes.length === 0) allFilled = false;
+          } else {
+            const input = questionDiv.querySelector(`#${questionId}`);
+            if (!input.value) allFilled = false;
+          }
+        });
+        
+        if (!allFilled) {
+          alert('請填寫所有必填項目');
+          return;
+        }
+        
+        // 收集答案
+        const answers = [];
+        const questions = document.querySelectorAll('.question');
+        
+        questions.forEach(questionDiv => {
+          const questionId = questionDiv.dataset.id;
+          const questionType = questionDiv.dataset.type;
+          let answer;
+          
+          // 根據不同題型獲取答案
+          if (questionType === 'single') {
+            const radio = questionDiv.querySelector(`input[name="${questionId}"]:checked`);
+            answer = radio ? radio.value : null;
+          } else if (questionType === 'multiple') {
+            const checkboxes = questionDiv.querySelectorAll(`input[name="${questionId}"]:checked`);
+            answer = Array.from(checkboxes).map(cb => cb.value);
+          } else if (questionType === 'dropdown' || questionType === 'text' || questionType === 'textarea' || 
+                    questionType === 'date' || questionType === 'time' || questionType === 'number' || 
+                    questionType === 'email') {
+            const input = questionDiv.querySelector(`#${questionId}`);
+            answer = input ? input.value : null;
+          }
+          
+          if (answer !== null && answer !== undefined) {
+            answers.push({
+              questionId,
+              answer
+            });
+          }
+        });
+        
+        // 獲取問卷ID
+        const urlParams = new URLSearchParams(window.location.search);
+        const surveyId = urlParams.get('id');
+        
+        // 提交答案
+        const res = await fetch(`${API_URL}/${surveyId}/answers`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            answers
+          })
+        });
+        
+        if (res.ok) {
+          alert('感謝您的填寫！');
+          // 清空表單或跳轉到感謝頁面
+          document.getElementById('questionsContainer').innerHTML = '<h2>問卷已成功提交</h2>';
+          document.getElementById('submitButton').style.display = 'none';
+        } else {
+          const error = await res.json();
+          alert(`提交失敗：${error.error || '未知錯誤'}`);
+        }
+      } catch (err) {
+        console.error('提交答案失敗:', err);
+        alert('提交失敗，請稍後再試');
+      }
+    }
   </script>
 </body>
 </html>

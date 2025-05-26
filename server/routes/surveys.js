@@ -313,4 +313,54 @@ router.get('/', auth, async (req, res) => {
   console.log('查詢結果:', surveys);
 });
 
+// 生成分享連結
+router.post('/:id/share', auth, async (req, res) => {
+  try {
+    const surveyId = req.params.id;
+    
+    // 檢查問卷是否存在且屬於當前用戶
+    const survey = await Survey.findOne({ _id: surveyId, user: req.userId });
+    if (!survey) {
+      return res.status(404).json({ error: '問卷不存在或無權限' });
+    }
+    
+    // 生成唯一的分享連結
+    const shareLink = `${req.protocol}://${req.get('host')}/fill.html?id=${surveyId}`;
+    
+    // 更新問卷，設置為公開並保存分享連結
+    survey.isPublic = true;
+    survey.shareLink = shareLink;
+    await survey.save();
+    
+    res.json({ shareLink });
+  } catch (err) {
+    console.error('生成分享連結失敗:', err);
+    res.status(500).json({ error: '伺服器錯誤' });
+  }
+});
+
+// 獲取公開問卷（不需要驗證）
+router.get('/public/:id', async (req, res) => {
+  try {
+    const surveyId = req.params.id;
+    
+    // 檢查問卷是否存在且公開
+    const survey = await Survey.findOne({ _id: surveyId, isPublic: true });
+    if (!survey) {
+      return res.status(404).json({ error: '問卷不存在或未公開' });
+    }
+    
+    // 返回問卷數據（不包含敏感信息）
+    res.json({
+      title: survey.title,
+      description: survey.description,
+      questions: survey.questions
+    });
+  } catch (err) {
+    console.error('獲取公開問卷失敗:', err);
+    res.status(500).json({ error: '伺服器錯誤' });
+  }
+});
+
+
 module.exports = router;

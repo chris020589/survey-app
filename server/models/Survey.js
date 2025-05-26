@@ -33,6 +33,11 @@ const surveySchema = new mongoose.Schema({
     required: true 
   },
   questions: [questionSchema], // 使用問題子模式
+  shareLink: String, // 分享連結
+  isPublic: {
+    type: Boolean,
+    default: false
+  }, // 是否公開
   createdAt: {
     type: Date,
     default: Date.now

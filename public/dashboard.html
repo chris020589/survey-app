@@ -83,6 +83,7 @@
               <div class="survey-actions">
                 <button onclick="viewResults('${survey._id}')">查看結果</button>
                 <button onclick="editSurvey('${survey._id}')">編輯問卷</button>
+                <button onclick="shareSurvey('${survey._id}')">分享問卷</button>
                 <button onclick="deleteSurvey('${survey._id}')">刪除問卷</button>
               </div>
             </div>
@@ -94,6 +95,39 @@
       }
     }
   
+    // 分享問卷
+    async function shareSurvey(surveyId) {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/${surveyId}/share`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+    
+        if (res.ok) {
+          const data = await res.json();
+          // 創建一個臨時輸入框來複製連結
+          const tempInput = document.createElement('input');
+          tempInput.value = data.shareLink;
+          document.body.appendChild(tempInput);
+          tempInput.select();
+          document.execCommand('copy');
+          document.body.removeChild(tempInput);
+      
+          alert(`分享連結已複製到剪貼簿：\n${data.shareLink}`);
+        } else {
+          const error = await res.json();
+          alert(`生成分享連結失敗：${error.error || '未知錯誤'}`);
+        }
+      } catch (err) {
+        console.error('分享問卷失敗:', err);
+        alert('伺服器錯誤，請稍後再試');
+      }
+    }
+
     // 編輯問卷
     function editSurvey(surveyId) {
       console.log('編輯問卷:', surveyId);
@@ -105,8 +139,10 @@
 
     // 查看結果
     function viewResults(surveyId) {
-      loadStats(surveyId);
+      // 跳轉到 results.html 頁面，並傳遞問卷 ID
+      window.location.href = `results.html?id=${surveyId}`;
     }
+
 
     // 刪除問卷
     async function deleteSurvey(surveyId) {

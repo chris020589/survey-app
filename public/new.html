@@ -105,7 +105,8 @@
         maxValue: '',
         minLength: '',
         maxLength: '',
-        pattern: ''
+        pattern: '',
+        maxChoices: '' // 多選題最多選擇數量
         },
         image: null // 新增圖片屬性
     });
@@ -192,6 +193,13 @@
       }
   
       try {
+        // 顯示上傳中提示
+        const loadingMsg = `正在上傳圖片...`;
+        const loadingEl = document.createElement('div');
+        loadingEl.textContent = loadingMsg;
+        loadingEl.id = `loading-${questionId}`;
+        document.getElementById(questionId).appendChild(loadingEl);
+
         // 建立 FormData 物件
         const formData = new FormData();
         formData.append('image', file);
@@ -205,6 +213,9 @@
           },
           body: formData
         });
+        // 移除上傳中提示
+        const loadingElement = document.getElementById(`loading-${questionId}`);
+        if (loadingElement) loadingElement.remove();
     
         if (res.ok) {
           const data = await res.json();
@@ -216,6 +227,7 @@
             console.log('圖片 URL 有效');
           } catch (e) {
             console.error('圖片 URL 無效');
+            alert('圖片上傳成功，但無法顯示。請檢查伺服器設置。');
           }
       
           // 更新題目的圖片屬性
@@ -223,12 +235,18 @@
           question.image = data.imageUrl;
           renderQuestions();
         } else {
-          const error = await res.json();
-          alert(`上傳圖片失敗：${error.error || '未知錯誤'}`);
+      let errorMsg = '上傳失敗';
+      try {
+            const errorData = await res.json();
+            errorMsg = errorData.error || '未知錯誤';
+          } catch (e) {
+            errorMsg = await res.text() || '未知錯誤';
+          }
+          alert(`上傳圖片失敗：${errorMsg}`);
         }
       } catch (err) {
         console.error('上傳圖片時發生錯誤:', err);
-        alert('伺服器錯誤，請稍後再試');
+        alert(`上傳圖片失敗：${err.message || '網絡錯誤，請檢查伺服器連接'}`);
       }
     }
 
@@ -320,7 +338,15 @@
                 onchange="updateValidation('${question.id}', 'maxValue', this.value)">
             </label>
           </div>
-    `    ;
+          <div class="validation-display">
+            ${question.validation?.minValue && question.validation?.maxValue ? 
+              `<p class="validation-info">數字範圍限制: ${question.validation.minValue} - ${question.validation.maxValue}</p>` : 
+              question.validation?.minValue ? 
+              `<p class="validation-info">最小值: ${question.validation.minValue}</p>` : 
+              question.validation?.maxValue ? 
+              `<p class="validation-info">最大值: ${question.validation.maxValue}</p>` : ''}
+          </div>
+        `;
       } else if (question.type === 'text' || question.type === 'textarea') {
         return `
           <div class="validation-options">
@@ -333,16 +359,34 @@
                 onchange="updateValidation('${question.id}', 'maxLength', this.value)">
             </label>
           </div>
-    `    ;
+          <div class="validation-display">
+            ${question.validation?.maxLength ? 
+              `<p class="validation-info">字數限制: ${question.validation?.minLength || '0'} - ${question.validation.maxLength} 字</p>` : ''}
+          </div>
+        `;
+      } else if (question.type === 'multiple') {
+        return `
+          <div class="validation-options">
+            <label>最多選擇項數:
+              <input type="number" min="0" value="${question.validation?.maxChoices || ''}" 
+                onchange="updateValidation('${question.id}', 'maxChoices', this.value)">
+            </label>
+          </div>
+          <div class="validation-display">
+            ${question.validation?.maxChoices ? 
+              `<p class="validation-info">最多可選擇 ${question.validation.maxChoices} 項</p>` : ''}
+          </div>
+        `;
       } else if (question.type === 'email') {
         return `
           <div class="validation-options">
             <p>將驗證電子郵件格式</p>
           </div>
-    `    ;
+        `;
       }
       return '';
     }
+
 
     
     // 初始化
@@ -360,6 +404,8 @@
         alert('有必填題目尚未填寫題目描述！');
         return;
       }
+
+
 
       // 將問卷資料存入 localStorage
       localStorage.setItem('previewSurvey', JSON.stringify({ title, description, questions }));

@@ -1,32 +1,355 @@
-<div id="resultsContainer"></div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>問卷結果</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1, h2 {
+      color: #333;
+    }
+    .question-result {
+      margin-bottom: 30px;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    .chart-container {
+      height: 300px;
+      margin: 20px 0;
+    }
+    .btn {
+      padding: 10px 15px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 10px;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .btn:hover {
+      background-color: #45a049;
+    }
+    .btn-secondary {
+      background-color: #2196F3;
+    }
+    .btn-secondary:hover {
+      background-color: #0b7dda;
+    }
+    .actions {
+      margin-top: 20px;
+    }
+    .summary {
+      margin-bottom: 20px;
+      padding: 15px;
+      background-color: #f9f9f9;
+      border-left: 4px solid #4CAF50;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 id="surveyTitle">問卷結果</h1>
+    <p id="surveyDescription"></p>
+    
+    <div class="summary">
+      <h3>總覽</h3>
+      <p id="totalResponses">總回答數: 載入中...</p>
+      <p id="completionRate">完成率: 載入中...</p>
+      <p id="averageTime">平均填寫時間: 載入中...</p>
+    </div>
+    
+    <div id="resultsContainer">載入中...</div>
+    
+    <div class="actions">
+      <button class="btn" onclick="exportCSV()">匯出 CSV</button>
+      <button class="btn btn-secondary" onclick="window.location.href='dashboard.html'">返回儀表板</button>
+    </div>
+  </div>
 
-<script>
-  const API_URL = 'http://localhost:5000/api/surveys';
-  const surveyId = new URLSearchParams(window.location.search).get('id');
+  <script>
+    const API_URL = 'http://localhost:5000/api/surveys';
+    const surveyId = new URLSearchParams(window.location.search).get('id');
+    let surveyData = null;
+    let answersData = null;
 
-  async function loadResults() {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API_URL}/${surveyId}/results`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
+    async function loadSurveyDetails() {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/${surveyId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!res.ok) {
+          throw new Error('無法獲取問卷詳情');
+        }
+        
+        surveyData = await res.json();
+        document.getElementById('surveyTitle').textContent = surveyData.title;
+        document.getElementById('surveyDescription').textContent = surveyData.description;
+        
+        // 載入問卷結果
+        await loadResults();
+      } catch (err) {
+        console.error('載入問卷詳情失敗:', err);
+        alert('載入問卷詳情失敗，請稍後再試');
+      }
+    }
+
+    async function loadResults() {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/${surveyId}/stats`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+    
+        if (!res.ok) {
+          throw new Error('無法獲取問卷結果');
+        }
+    
+        answersData = await res.json();
+        
+        // 獲取所有回答
+        const answersRes = await fetch(`${API_URL}/${surveyId}/answers`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!answersRes.ok) {
+          throw new Error('無法獲取問卷回答');
+        }
+        
+        const allAnswers = await answersRes.json();
+        
+        // 更新總覽信息
+        document.getElementById('totalResponses').textContent = `總回答數: ${allAnswers.length || 0}`;
+        
+        // 渲染結果
+        renderResults(answersData);
+      } catch (err) {
+        console.error('載入問卷結果失敗:', err);
+        document.getElementById('resultsContainer').innerHTML = '<p>載入問卷結果失敗，請稍後再試</p>';
+      }
+    }
+
+    function renderResults(results) {
+      if (!surveyData || !surveyData.questions || !results) {
+        document.getElementById('resultsContainer').innerHTML = '<p>無法顯示結果，數據不完整</p>';
+        return;
+      }
+      
+      const container = document.getElementById('resultsContainer');
+      container.innerHTML = '';
+      
+      // 檢查是否有回答數據
+      if (results.length === 0) {
+        container.innerHTML = '<p>目前還沒有人填寫此問卷</p>';
+        return;
+      }
+      
+      // 按題目分類顯示結果
+      surveyData.questions.forEach((question, index) => {
+        // 找到對應的結果數據
+        const result = results.find(r => r.questionId === question.id);
+        
+        const questionDiv = document.createElement('div');
+        questionDiv.className = 'question-result';
+        questionDiv.innerHTML = `
+          <h3>問題 ${index + 1}: ${question.text}</h3>
+        `;
+        
+        // 如果沒有此問題的回答數據，顯示提示
+        if (!result) {
+          questionDiv.innerHTML += `<p>此問題尚未有人回答</p>`;
+          container.appendChild(questionDiv);
+          return;
+        }
+        
+        // 為不同題型創建不同的結果顯示
+        if (question.type === 'single' || question.type === 'multiple' || question.type === 'dropdown') {
+          // 創建圖表容器
+          const chartContainer = document.createElement('div');
+          chartContainer.className = 'chart-container';
+          chartContainer.innerHTML = `<canvas id="chart-${question.id}"></canvas>`;
+          questionDiv.appendChild(chartContainer);
+          
+          // 添加結果表格
+          const tableDiv = document.createElement('div');
+          tableDiv.innerHTML = `
+            <table style="width:100%; border-collapse: collapse; margin-top: 15px;">
+              <thead>
+                <tr>
+                  <th style="text-align:left; padding: 8px; border-bottom: 1px solid #ddd;">選項</th>
+                  <th style="text-align:right; padding: 8px; border-bottom: 1px solid #ddd;">回答數</th>
+                  <th style="text-align:right; padding: 8px; border-bottom: 1px solid #ddd;">百分比</th>
+                </tr>
+              </thead>
+              <tbody id="table-${question.id}">
+              </tbody>
+            </table>
+          `;
+          questionDiv.appendChild(tableDiv);
+          
+          // 創建圖表
+          createChart(question, result);
+        } else {
+          // 文本類型的回答
+          questionDiv.innerHTML += `<p>此題型的回答需要手動分析</p>`;
+          
+          // 如果有選項數據，顯示原始回答
+          if (result.options && result.options.length > 0) {
+            questionDiv.innerHTML += `
+              <div style="margin-top: 15px;">
+                <h4>原始回答:</h4>
+                <ul>
+                  ${result.options.map(opt => `<li>${opt.option} (${opt.count}次)</li>`).join('')}
+                </ul>
+              </div>
+            `;
+          }
+        }
+        
+        container.appendChild(questionDiv);
+      });
+    }
+
+
+    function createChart(question, result) {
+      // 從結果中提取選項和數據
+      const options = result.options || [];
+      const labels = options.map(opt => opt.option);
+      const data = options.map(opt => opt.count);
+      
+      // 計算總回答數
+      const total = data.reduce((sum, count) => sum + count, 0);
+      
+      // 更新表格
+      const tableBody = document.getElementById(`table-${question.id}`);
+      if (tableBody) {
+        options.forEach((option) => {
+          const percent = total > 0 ? ((option.count / total) * 100).toFixed(1) : '0.0';
+          tableBody.innerHTML += `
+            <tr>
+              <td style="text-align:left; padding: 8px; border-bottom: 1px solid #eee;">${option.option}</td>
+              <td style="text-align:right; padding: 8px; border-bottom: 1px solid #eee;">${option.count}</td>
+              <td style="text-align:right; padding: 8px; border-bottom: 1px solid #eee;">${percent}%</td>
+            </tr>
+          `;
+        });
+      }
+      
+      // 創建圖表
+      const ctx = document.getElementById(`chart-${question.id}`).getContext('2d');
+      new Chart(ctx, {
+        type: question.type === 'single' || question.type === 'dropdown' ? 'pie' : 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '回答數',
+            data: data,
+            backgroundColor: [
+              'rgba(255, 99, 132, 0.7)',
+              'rgba(54, 162, 235, 0.7)',
+              'rgba(255, 206, 86, 0.7)',
+              'rgba(75, 192, 192, 0.7)',
+              'rgba(153, 102, 255, 0.7)',
+              'rgba(255, 159, 64, 0.7)',
+              'rgba(199, 199, 199, 0.7)',
+              'rgba(83, 102, 255, 0.7)',
+              'rgba(40, 159, 64, 0.7)',
+              'rgba(210, 199, 199, 0.7)'
+            ],
+            borderColor: [
+              'rgba(255, 99, 132, 1)',
+              'rgba(54, 162, 235, 1)',
+              'rgba(255, 206, 86, 1)',
+              'rgba(75, 192, 192, 1)',
+              'rgba(153, 102, 255, 1)',
+              'rgba(255, 159, 64, 1)',
+              'rgba(199, 199, 199, 1)',
+              'rgba(83, 102, 255, 1)',
+              'rgba(40, 159, 64, 1)',
+              'rgba(210, 199, 199, 1)'
+            ],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right',
+            },
+            title: {
+              display: true,
+              text: question.text
+            }
+          }
         }
       });
-  
-      if (!res.ok) {
-        throw new Error('無法獲取問卷結果');
-      }
-  
-      const results = await res.json();
-      const container = document.getElementById('resultsContainer');
-      container.innerHTML = results.map(r => `<p>${r._id}: ${r.count}</p>`).join('');
-    } catch (err) {
-      console.error(err);
-      alert('載入問卷結果失敗，請稍後再試');
     }
-  }
 
-  loadResults();
-</script>
+
+    function exportCSV() {
+      if (!surveyData || !answersData) {
+        alert('無法匯出，數據不完整');
+        return;
+      }
+      
+      let csvContent = "data:text/csv;charset=utf-8,";
+      
+      // 添加標題行
+      csvContent += "問題,選項,回答數,百分比\n";
+      
+      // 添加數據行
+      surveyData.questions.forEach(question => {
+        const result = answersData.find(r => r.questionId === question.id);
+        
+        if (result && result.options && result.options.length > 0) {
+          const total = result.options.reduce((sum, opt) => sum + opt.count, 0);
+          
+          result.options.forEach(option => {
+            const percent = total > 0 ? ((option.count / total) * 100).toFixed(1) : '0.0';
+            csvContent += `"${question.text}","${option.option}",${option.count},${percent}%\n`;
+          });
+        }
+      });
+      
+      // 創建下載連結
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `survey_results_${surveyId}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // 頁面載入時執行
+    document.addEventListener('DOMContentLoaded', loadSurveyDetails);
+  </script>
+</body>
+</html>
