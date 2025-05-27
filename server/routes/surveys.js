@@ -232,12 +232,32 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-// 填寫問卷
-router.post('/:id/answers', async (req, res) => {
+// 填寫問卷(管理員用，需要驗證)
+router.post('/:id/admin-answers', auth, async (req, res) => {
   try {
-    const answer = new Answer({ surveyId: req.params.id, ...req.body });
+    const answer = new Answer({ 
+      survey: req.params.id,
+      surveyId: req.params.id, // 同時設置兩個字段，確保兼容性
+      answers: req.body.answers,
+      createdBy: req.userId // 記錄是哪個管理員創建的
+    });
     await answer.save();
     res.status(201).json(answer); // 返回新增的答案
+  } catch (err) {
+    res.status(400).json({ error: err.message }); // 錯誤處理
+  }
+});
+
+// 填寫問卷 (需要驗證的版本)
+router.post('/:id/answers/auth', auth, async (req, res) => {
+  try {
+    const answer = new Answer({ 
+      survey: req.params.id, 
+      surveyId: req.params.id, // 同時設置兩個字段，確保兼容性
+      answers: req.body.answers 
+    });
+    await answer.save();
+    res.json({ message: '填寫成功' }); // 返回 JSON 格式
   } catch (err) {
     res.status(400).json({ error: err.message }); // 錯誤處理
   }
@@ -246,13 +266,196 @@ router.post('/:id/answers', async (req, res) => {
 // 查詢問卷結果
 router.get('/:id/results', auth, async (req, res) => {
   try {
-    const results = await Answer.aggregate([
-      { $match: { survey: new mongoose.Types.ObjectId(req.params.id) } },
-      { $group: { _id: "$answer", count: { $sum: 1 } } }
-    ]);
-    res.json(results); // 確保使用 res.json()
+    // 使用 surveyId 字段查詢，與 Answer 模型結構匹配
+    const answers = await Answer.find({ surveyId: req.params.id });
+    
+    // 處理答案數據，按問題分組
+    const resultsMap = {};
+    
+    answers.forEach(answer => {
+      if (!answer.answers || !Array.isArray(answer.answers)) return;
+      
+      answer.answers.forEach(ans => {
+        if (!resultsMap[ans.questionId]) {
+          resultsMap[ans.questionId] = {};
+        }
+        
+        // 處理不同類型的答案
+        if (Array.isArray(ans.answer)) {
+          // 多選題
+          ans.answer.forEach(option => {
+            resultsMap[ans.questionId][option] = (resultsMap[ans.questionId][option] || 0) + 1;
+          });
+        } else if (ans.answer) {
+          // 單選題或其他類型
+          resultsMap[ans.questionId][ans.answer] = (resultsMap[ans.questionId][ans.answer] || 0) + 1;
+        }
+      });
+    });
+    
+    // 轉換為數組格式
+    const results = Object.entries(resultsMap).map(([questionId, options]) => ({
+      questionId,
+      options: Object.entries(options).map(([option, count]) => ({ option, count }))
+    }));
+    
+    res.json(results);
   } catch (err) {
-    res.status(500).json({ error: '伺服器錯誤' }); // 返回 JSON 格式的錯誤
+    console.error('查詢問卷結果失敗:', err);
+    res.status(500).json({ error: '伺服器錯誤' });
+  }
+});
+
+
+// 獲取公開問卷（不需要驗證）
+router.get('/public/:id', async (req, res) => {
+  try {
+    // 確保 ID 格式正確
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: '無效的問卷ID格式' });
+    }
+    
+    const survey = await Survey.findById(req.params.id);
+    
+    if (!survey) {
+      return res.status(404).json({ error: '問卷不存在' });
+    }
+    
+    res.json(survey);
+  } catch (err) {
+    console.error('獲取公開問卷失敗:', err);
+    res.status(500).json({ error: '伺服器錯誤' });
+  }
+});
+
+// 獲取問卷所有回答
+router.get('/:id/answers', auth, async (req, res) => {
+  try {
+    // 確保問卷存在且屬於該使用者
+    const survey = await Survey.findOne({ _id: req.params.id, user: req.userId });
+    if (!survey) {
+      return res.status(404).json({ error: '問卷不存在或無權限查看回答' });
+    }
+
+    // 獲取所有答案 (使用 surveyId 字段)
+    const answers = await Answer.find({ surveyId: req.params.id });
+    res.json(answers);
+  } catch (err) {
+    console.error('獲取問卷回答失敗:', err);
+    res.status(500).json({ error: '獲取問卷回答失敗' });
+  }
+});
+
+// 查看問卷結果
+router.get('/:id/stats', auth, async (req, res) => {
+  try {
+    console.log('查詢問卷統計，ID:', req.params.id, '用戶ID:', req.userId);
+    
+    // 確保問卷存在且屬於該使用者
+    const survey = await Survey.findOne({ _id: req.params.id, user: req.userId });
+    if (!survey) {
+      console.log('問卷不存在或無權限查看');
+      return res.status(404).json({ error: '問卷不存在或無權限查看統計' });
+    }
+    console.log('找到問卷:', survey.title, '問卷用戶ID:', survey.user);
+
+    // 獲取問卷的所有答案 (使用 surveyId 字段)
+    const answers = await Answer.find({ surveyId: req.params.id });
+    console.log('找到答案數量:', answers.length);
+    
+    // 如果沒有答案，返回空數組
+    if (!answers || answers.length === 0) {
+      console.log('沒有找到答案');
+      return res.json([]);
+    }
+
+    // 直接處理答案數據，不使用聚合查詢
+    const results = [];
+    
+    // 確保問卷有 questions 屬性
+    if (!survey.questions || !Array.isArray(survey.questions)) {
+      console.log('問卷沒有題目或題目格式不正確');
+      return res.json([]);
+    }
+    
+    // 為每個問題創建一個結果對象
+    survey.questions.forEach(question => {
+      const result = {
+        questionId: question.id,
+        questionText: question.text,
+        questionType: question.type,
+        options: [],
+        totalResponses: 0
+      };
+      
+      // 統計每個選項的回答數
+      const optionCounts = {};
+      
+      // 遍歷所有答案
+      answers.forEach(answer => {
+        if (!answer.answers || !Array.isArray(answer.answers)) return;
+        
+        // 找到對應問題的答案
+        const ans = answer.answers.find(a => a.questionId === question.id);
+        if (!ans) return;
+        
+        result.totalResponses++;
+        
+        // 處理不同類型的答案
+        if (Array.isArray(ans.answer)) {
+          // 多選題
+          ans.answer.forEach(option => {
+            optionCounts[option] = (optionCounts[option] || 0) + 1;
+          });
+        } else if (ans.answer !== "") { // 忽略空字符串答案
+          // 單選題或其他類型
+          optionCounts[ans.answer] = (optionCounts[ans.answer] || 0) + 1;
+        }
+      });
+      
+      // 將選項計數轉換為數組
+      result.options = Object.entries(optionCounts).map(([option, count]) => ({
+        option,
+        count,
+        percentage: result.totalResponses > 0 ? Math.round((count / result.totalResponses) * 100) : 0
+      }));
+      
+      results.push(result);
+    });
+    
+    res.json(results);
+  } catch (err) {
+    console.error('統計查詢失敗:', err);
+    res.status(500).json({ error: '統計查詢失敗', details: err.message });
+  }
+});
+
+// 公開提交問卷答案 - 不需要驗證
+router.post('/:id/submit-answers', async (req, res) => {
+  try {
+    console.log('提交問卷答案，ID:', req.params.id);
+    console.log('答案數據:', req.body);
+    
+    // 確保 ID 格式正確
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: '無效的問卷ID格式' });
+    }
+    
+    const surveyId = req.params.id;
+    const answer = new Answer({ 
+      survey: surveyId, 
+      surveyId: surveyId, // 同時設置兩個字段，確保兼容性
+      answers: req.body.answers 
+    });
+    
+    console.log('準備保存答案:', answer);
+    await answer.save();
+    console.log('答案保存成功');
+    
+    res.json({ message: '填寫成功' });
+  } catch (err) {
+    console.error('提交答案失敗:', err);
+    res.status(500).json({ error: '伺服器錯誤', details: err.message });
   }
 });
 
@@ -261,56 +464,45 @@ router.get('/:id', auth, async (req, res) => {
   try {
     console.log('獲取問卷詳情，ID:', req.params.id, '用戶ID:', req.userId);
     
-    const survey = await Survey.findOne({ _id: req.params.id, user: req.userId }); // 修改為 req.userId
-    if (!survey) return res.status(404).json({ error: '問卷不存在或無權限查看' });
+    // 確保 ID 格式正確
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: '無效的問卷ID格式' });
+    }
+    
+    const survey = await Survey.findOne({ _id: req.params.id, user: req.userId });
+    
+    if (!survey) {
+      return res.status(404).json({ error: '問卷不存在或無權限查看' });
+    }
     
     console.log('找到問卷:', survey);
     res.json(survey);
   } catch (err) {
     console.error('取得單份問卷失敗:', err);
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// 取得單一問卷統計
-router.get('/:id/stats', auth, async (req, res) => {
-  try {
-    const stats = await Answer.aggregate([
-      { $match: { survey: new mongoose.Types.ObjectId(req.params.id) } }, // 匹配指定問卷的答案
-      { $group: { _id: "$answer", count: { $sum: 1 } } }, // 按答案分組並計算數量
-      { $sort: { _id: 1 } } // 按答案排序
-    ]);
-    res.json(stats); // 返回統計數據
-  } catch (err) {
-    console.error('統計查詢失敗:', err);
-    res.status(500).json({ error: '統計查詢失敗' }); // 返回 JSON 格式的錯誤
+    res.status(500).json({ error: '伺服器錯誤' });
   }
 });
 
 // 獲取當前使用者的問卷
 router.get('/', auth, async (req, res) => {
-  console.log('獲取問卷的 API 被呼叫'); // 確認請求是否到達此處
-
-  let surveys; // 在函數作用域內定義 surveys
-
   try {
-    console.log('當前使用者 ID:', req.userId); // 新增日誌檢查使用者 ID
+    console.log('獲取問卷的 API 被呼叫');
+    console.log('當前使用者 ID:', req.userId);
 
-    // 如果 req.userId 已是 ObjectId，則直接使用
-    surveys = await Survey.find({ user: req.userId });
+    // 查詢當前使用者的問卷
+    const surveys = await Survey.find({ user: req.userId });
 
-    // 新增日誌檢查查詢結果
-    console.log('查詢到的問卷:', surveys);
+    // 如果問卷列表為空，返回提示訊息
+    if (surveys.length === 0) {
+      return res.status(200).json({ message: '目前沒有問卷' });
+    }
 
-    res.status(200).json(surveys);
+    // 返回問卷列表
+    res.json(surveys);
   } catch (err) {
-    console.error('獲取問卷失敗:', err);
-    res.status(500).json({ error: '伺服器錯誤' });
+    console.error('獲取問卷列表失敗:', err);
+    res.status(500).json({ error: '伺服器錯誤，無法獲取問卷列表' });
   }
-
-  // 在 try-catch 區塊外使用 surveys
-  console.log('查詢條件:', { user: req.userId });
-  console.log('查詢結果:', surveys);
 });
 
 // 生成分享連結
@@ -338,29 +530,5 @@ router.post('/:id/share', auth, async (req, res) => {
     res.status(500).json({ error: '伺服器錯誤' });
   }
 });
-
-// 獲取公開問卷（不需要驗證）
-router.get('/public/:id', async (req, res) => {
-  try {
-    const surveyId = req.params.id;
-    
-    // 檢查問卷是否存在且公開
-    const survey = await Survey.findOne({ _id: surveyId, isPublic: true });
-    if (!survey) {
-      return res.status(404).json({ error: '問卷不存在或未公開' });
-    }
-    
-    // 返回問卷數據（不包含敏感信息）
-    res.json({
-      title: survey.title,
-      description: survey.description,
-      questions: survey.questions
-    });
-  } catch (err) {
-    console.error('獲取公開問卷失敗:', err);
-    res.status(500).json({ error: '伺服器錯誤' });
-  }
-});
-
 
 module.exports = router;

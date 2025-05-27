@@ -278,7 +278,7 @@
         const surveyId = urlParams.get('id');
         
         // 提交答案
-        const res = await fetch(`${API_URL}/${surveyId}/answers`, {
+        const res = await fetch(`${API_URL}/${surveyId}/submit-answers`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

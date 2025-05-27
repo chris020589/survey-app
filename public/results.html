@@ -118,17 +118,27 @@
     async function loadResults() {
       try {
         const token = localStorage.getItem('token');
+        if (!token) {
+          console.error('未找到 token');
+          document.getElementById('resultsContainer').innerHTML = '<p>請先登入</p>';
+          return;
+        }
+        
+        console.log('正在請求問卷結果...');
         const res = await fetch(`${API_URL}/${surveyId}/stats`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
-    
+
         if (!res.ok) {
-          throw new Error('無法獲取問卷結果');
+          const errorText = await res.text();
+          console.error('獲取問卷結果失敗:', res.status, errorText);
+          throw new Error(`無法獲取問卷結果: ${res.status} ${errorText}`);
         }
-    
+
         answersData = await res.json();
+        console.log('問卷結果數據:', answersData);
         
         // 獲取所有回答
         const answersRes = await fetch(`${API_URL}/${surveyId}/answers`, {
@@ -150,9 +160,10 @@
         renderResults(answersData);
       } catch (err) {
         console.error('載入問卷結果失敗:', err);
-        document.getElementById('resultsContainer').innerHTML = '<p>載入問卷結果失敗，請稍後再試</p>';
+        document.getElementById('resultsContainer').innerHTML = `<p>載入問卷結果失敗: ${err.message}</p>`;
       }
     }
+
 
     function renderResults(results) {
       if (!surveyData || !surveyData.questions || !results) {
@@ -237,80 +248,96 @@
 
 
     function createChart(question, result) {
-      // 從結果中提取選項和數據
-      const options = result.options || [];
-      const labels = options.map(opt => opt.option);
-      const data = options.map(opt => opt.count);
-      
-      // 計算總回答數
-      const total = data.reduce((sum, count) => sum + count, 0);
-      
-      // 更新表格
-      const tableBody = document.getElementById(`table-${question.id}`);
-      if (tableBody) {
-        options.forEach((option) => {
-          const percent = total > 0 ? ((option.count / total) * 100).toFixed(1) : '0.0';
-          tableBody.innerHTML += `
-            <tr>
-              <td style="text-align:left; padding: 8px; border-bottom: 1px solid #eee;">${option.option}</td>
-              <td style="text-align:right; padding: 8px; border-bottom: 1px solid #eee;">${option.count}</td>
-              <td style="text-align:right; padding: 8px; border-bottom: 1px solid #eee;">${percent}%</td>
-            </tr>
-          `;
-        });
-      }
-      
-      // 創建圖表
-      const ctx = document.getElementById(`chart-${question.id}`).getContext('2d');
-      new Chart(ctx, {
-        type: question.type === 'single' || question.type === 'dropdown' ? 'pie' : 'bar',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: '回答數',
-            data: data,
-            backgroundColor: [
-              'rgba(255, 99, 132, 0.7)',
-              'rgba(54, 162, 235, 0.7)',
-              'rgba(255, 206, 86, 0.7)',
-              'rgba(75, 192, 192, 0.7)',
-              'rgba(153, 102, 255, 0.7)',
-              'rgba(255, 159, 64, 0.7)',
-              'rgba(199, 199, 199, 0.7)',
-              'rgba(83, 102, 255, 0.7)',
-              'rgba(40, 159, 64, 0.7)',
-              'rgba(210, 199, 199, 0.7)'
-            ],
-            borderColor: [
-              'rgba(255, 99, 132, 1)',
-              'rgba(54, 162, 235, 1)',
-              'rgba(255, 206, 86, 1)',
-              'rgba(75, 192, 192, 1)',
-              'rgba(153, 102, 255, 1)',
-              'rgba(255, 159, 64, 1)',
-              'rgba(199, 199, 199, 1)',
-              'rgba(83, 102, 255, 1)',
-              'rgba(40, 159, 64, 1)',
-              'rgba(210, 199, 199, 1)'
-            ],
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'right',
-            },
-            title: {
-              display: true,
-              text: question.text
+      try {
+        // 從結果中提取選項和數據
+        const options = result.options || [];
+        const labels = options.map(opt => opt.option);
+        const data = options.map(opt => opt.count);
+        
+        // 計算總回答數
+        const total = data.reduce((sum, count) => sum + count, 0);
+        
+        // 更新表格
+        const tableBody = document.getElementById(`table-${question.id}`);
+        if (tableBody) {
+          options.forEach((option) => {
+            const percent = total > 0 ? ((option.count / total) * 100).toFixed(1) : '0.0';
+            tableBody.innerHTML += `
+              <tr>
+                <td style="text-align:left; padding: 8px; border-bottom: 1px solid #eee;">${option.option}</td>
+                <td style="text-align:right; padding: 8px; border-bottom: 1px solid #eee;">${option.count}</td>
+                <td style="text-align:right; padding: 8px; border-bottom: 1px solid #eee;">${percent}%</td>
+              </tr>
+            `;
+          });
+        }
+        
+        // 創建圖表 - 先檢查元素是否存在
+        const chartElement = document.getElementById(`chart-${question.id}`);
+        if (!chartElement) {
+          console.error(`找不到圖表元素: chart-${question.id}`);
+          return;
+        }
+        
+        const ctx = chartElement.getContext('2d');
+        if (!ctx) {
+          console.error(`無法獲取圖表上下文: chart-${question.id}`);
+          return;
+        }
+        
+        new Chart(ctx, {
+          type: question.type === 'single' || question.type === 'dropdown' ? 'pie' : 'bar',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: '回答數',
+              data: data,
+              backgroundColor: [
+                'rgba(255, 99, 132, 0.7)',
+                'rgba(54, 162, 235, 0.7)',
+                'rgba(255, 206, 86, 0.7)',
+                'rgba(75, 192, 192, 0.7)',
+                'rgba(153, 102, 255, 0.7)',
+                'rgba(255, 159, 64, 0.7)',
+                'rgba(199, 199, 199, 0.7)',
+                'rgba(83, 102, 255, 0.7)',
+                'rgba(40, 159, 64, 0.7)',
+                'rgba(210, 199, 199, 0.7)'
+              ],
+              borderColor: [
+                'rgba(255, 99, 132, 1)',
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 206, 86, 1)',
+                'rgba(75, 192, 192, 1)',
+                'rgba(153, 102, 255, 1)',
+                'rgba(255, 159, 64, 1)',
+                'rgba(199, 199, 199, 1)',
+                'rgba(83, 102, 255, 1)',
+                'rgba(40, 159, 64, 1)',
+                'rgba(210, 199, 199, 1)'
+              ],
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'right',
+              },
+              title: {
+                display: true,
+                text: question.text
+              }
             }
           }
-        }
-      });
+        });
+      } catch (err) {
+        console.error(`創建圖表時出錯: ${err.message}`);
+      }
     }
+
 
 
     function exportCSV() {
