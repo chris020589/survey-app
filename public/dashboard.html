@@ -3,31 +3,56 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>問卷總覽</title>
-  <style>
-    .survey-item {
-      border: 1px solid #ccc;
-      padding: 15px;
-      margin-bottom: 15px;
-      border-radius: 5px;
-    }
-    .survey-actions {
-      margin-top: 10px;
-    }
-    .survey-actions button {
-      margin-right: 10px;
-    }
-  </style>
+  <title>問卷總覽 - 學術問卷系統</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=Noto+Serif:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="academic-survey.css">
 </head>
 <body>
-  <h1>問卷總覽</h1>
-  
-  <!-- 新增問卷按鈕 -->
-  <button onclick="goToNewSurvey()">新增問卷</button>
-  
-  <div id="surveyList"></div>
+  <header>
+    <div class="header-content">
+      <div class="logo">學術問卷系統</div>
+      <nav>
+        <ul>
+          <li><a href="dashboard.html">問卷總覽</a></li>
+          <li><a href="new.html">新增問卷</a></li>
+          <li><a href="#" onclick="logout()">登出</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <div class="container">
+    <h1>問卷總覽</h1>
+    
+    <div class="actions">
+      <button class="btn btn-primary" onclick="goToNewSurvey()">新增問卷</button>
+    </div>
+    
+    <div id="surveyList"></div>
+  </div>
+
+  <footer>
+    <p>&copy; 2023 學術問卷系統 - 為碩博士生研究提供支持</p>
+  </footer>
   
   <script>
+    // 處理 API 響應，檢查 token 是否失效
+    function handleApiResponse(response) {
+      if (response.status === 401 || response.status === 403) {
+        alert('登入已過時，請重新登入!');
+        localStorage.removeItem('token'); // 清除失效的 token
+        window.location.href = 'index.html'; // 重定向到登入頁面
+        return null;
+      }
+      return response;
+    }
+
+    // 登出功能
+    function logout() {
+      localStorage.removeItem('token');
+      window.location.href = 'index.html';
+    }
+
     const API_URL = 'http://localhost:5000/api/surveys';
 
     // 跳轉到 new.html
@@ -41,17 +66,17 @@
         const token = localStorage.getItem('token');
         if (!token) {
           alert('請先登入');
-          window.location.href = 'login.html'; // 跳轉到登入頁面
+          window.location.href = 'index.html'; // 跳轉到登入頁面
           return;
         }
 
-        const res = await fetch(API_URL, {
+        let res = await fetch(API_URL, {
           headers: {
-            'Authorization': `Bearer ${token}`,
-            //'Content-Type': 'application/json',
-            //'Accept': 'application/json'
+            'Authorization': `Bearer ${token}`
           }
         });
+        res = handleApiResponse(res);
+        if (!res) return; // 如果 token 失效，handleApiResponse 會返回 null
 
         if (!res.ok) {
           throw new Error('無法獲取問卷列表');
@@ -64,14 +89,13 @@
       
         if (data.message) {
           // 沒有問卷
-          surveyList.innerHTML = `<p>${data.message}</p>`;
+          surveyList.innerHTML = `<div class="card"><p>${data.message}</p></div>`;
           return;
         }
 
         // 如果問卷列表為空，顯示提示
         if (Array.isArray(data) && data.length === 0) {
-          alert('您目前沒有任何問卷，請先去新增問卷');
-          window.location.href = 'new.html';
+          surveyList.innerHTML = `<div class="card"><p>您目前沒有任何問卷，請先去新增問卷</p></div>`;
           return;
         }
       
@@ -81,17 +105,17 @@
               <h3>${survey.title}</h3>
               <p>${survey.description}</p>
               <div class="survey-actions">
-                <button onclick="viewResults('${survey._id}')">查看結果</button>
-                <button onclick="editSurvey('${survey._id}')">編輯問卷</button>
-                <button onclick="shareSurvey('${survey._id}')">分享問卷</button>
-                <button onclick="deleteSurvey('${survey._id}')">刪除問卷</button>
+                <button class="btn" onclick="viewResults('${survey._id}')">查看結果</button>
+                <button class="btn btn-primary" onclick="editSurvey('${survey._id}')">編輯問卷</button>
+                <button class="btn btn-success" onclick="shareSurvey('${survey._id}')">分享問卷</button>
+                <button class="btn btn-accent" onclick="deleteSurvey('${survey._id}')">刪除問卷</button>
               </div>
             </div>
           `;
         });
       } catch (err) {
-      console.error('獲取問卷失敗:', err);
-      alert('載入問卷列表失敗，請稍後再試');
+        console.error('獲取問卷失敗:', err);
+        alert('載入問卷列表失敗，請稍後再試');
       }
     }
   
@@ -99,7 +123,7 @@
     async function shareSurvey(surveyId) {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${API_URL}/${surveyId}/share`, {
+        let res = await fetch(`${API_URL}/${surveyId}/share`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -143,7 +167,6 @@
       window.location.href = `results.html?id=${surveyId}`;
     }
 
-
     // 刪除問卷
     async function deleteSurvey(surveyId) {
       const confirmDelete = confirm('確定要刪除此問卷嗎？此操作無法復原！');
@@ -158,7 +181,7 @@
       }
 
       try {
-        const res = await fetch(`${API_URL}/${surveyId}`, {
+        let res = await fetch(`${API_URL}/${surveyId}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -184,7 +207,7 @@
     async function loadStats(surveyId) {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${API_URL}/${surveyId}/stats`, {
+        let res = await fetch(`${API_URL}/${surveyId}/stats`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             //'Content-Type': 'application/json',

@@ -1,50 +1,229 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>填寫問卷</title>
+  <title>填寫問卷 - 學術問卷系統</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=Noto+Serif:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="academic-survey.css">
   <style>
+    :root {
+      --primary-color: #2c3e50;
+      --secondary-color: #3498db;
+      --accent-color: #e74c3c;
+      --background-color: #f5f7fa;
+      --text-color: #333;
+      --border-color: #ddd;
+      --success-color: #27ae60;
+      --warning-color: #f39c12;
+      --error-color: #c0392b;
+      --font-main: 'Noto Sans', 'Segoe UI', Roboto, Arial, sans-serif;
+      --font-heading: 'Noto Serif', Georgia, 'Times New Roman', serif;
+    }
+    
+    body {
+      font-family: var(--font-main);
+      background-color: var(--background-color);
+      color: var(--text-color);
+      line-height: 1.6;
+      padding: 0;
+      margin: 0;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    header {
+      background-color: var(--primary-color);
+      color: white;
+      padding: 1rem 0;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+    }
+    
+    .header-content {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .logo {
+      font-family: var(--font-heading);
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+    
+    h1, h2, h3 {
+      font-family: var(--font-heading);
+      color: var(--primary-color);
+    }
+    
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    h2 {
+      font-size: 1.8rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .survey-header {
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .survey-description {
+      font-size: 1.1rem;
+      color: #555;
+      line-height: 1.6;
+    }
+    
     .question {
-      margin-bottom: 20px;
-      padding: 15px;
-      border: 1px solid #ddd;
-      border-radius: 5px;
+      background-color: white;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 25px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
+    
+    .question h3 {
+      margin-top: 0;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eee;
+      color: var(--primary-color);
+    }
+    
     .required {
-      color: red;
+      color: var(--accent-color);
+      margin-left: 3px;
     }
+    
     .answer-container {
-      margin-top: 10px;
+      margin-top: 15px;
     }
+    
+    .answer-option {
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+    }
+    
+    .answer-option input[type="radio"],
+    .answer-option input[type="checkbox"] {
+      margin-right: 10px;
+    }
+    
+    input[type="text"],
+    input[type="email"],
+    input[type="number"],
+    input[type="date"],
+    input[type="time"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-family: var(--font-main);
+      margin-bottom: 5px;
+    }
+    
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--secondary-color);
+      box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
+    }
+    
     button {
-      padding: 10px 20px;
-      background-color: #4CAF50;
+      background-color: var(--secondary-color);
       color: white;
       border: none;
+      padding: 12px 25px;
       border-radius: 4px;
       cursor: pointer;
+      font-family: var(--font-main);
+      font-size: 1rem;
+      font-weight: bold;
       margin-top: 20px;
+      transition: background-color 0.3s;
     }
+    
     button:hover {
-      background-color: #45a049;
+      background-color: #2980b9;
     }
+    
     .validation-info {
       font-size: 0.9em;
       color: #666;
       margin-top: 5px;
       font-style: italic;
+      background-color: #f0f0f0;
+      padding: 8px;
+      border-radius: 4px;
+      border-left: 3px solid var(--secondary-color);
+    }
+    
+    .question-image {
+      max-width: 100%;
+      margin-bottom: 15px;
+      border-radius: 4px;
+    }
+    
+    footer {
+      background-color: var(--primary-color);
+      color: white;
+      text-align: center;
+      padding: 20px 0;
+      margin-top: 40px;
+    }
+    
+    .multiple-choice-container {
+      margin-top: 10px;
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        padding: 15px;
+      }
+      
+      .question {
+        padding: 15px;
+      }
     }
   </style>
 </head>
 <body>
-  <h1>填寫問卷</h1>
-  <h2 id="surveyTitle">載入中...</h2>
-  <p id="surveyDescription"></p>
-  
-  <div id="questionsContainer"></div>
-  
-  <button type="button" id="submitButton" onclick="submitAnswers()">提交答案</button>
+  <header>
+    <div class="header-content">
+      <div class="logo">學術問卷系統</div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="survey-header">
+      <h1>填寫問卷</h1>
+      <h2 id="surveyTitle">載入中...</h2>
+      <p id="surveyDescription" class="survey-description"></p>
+    </div>
+    
+    <div id="questionsContainer"></div>
+    
+    <button type="button" id="submitButton" onclick="submitAnswers()">提交答案</button>
+  </div>
+
+  <footer>
+    <p>&copy; 2023 學術問卷系統 - 為碩博士生研究提供支持</p>
+  </footer>
 
   <script>
     const API_URL = 'http://localhost:5000/api/surveys';
@@ -99,7 +278,7 @@
         const questionHtml = `
           <div class="question" data-id="${q.id}" data-type="${q.type}">
             <h3>${index + 1}. ${q.text} ${q.required ? '<span class="required">*</span>' : ''}</h3>
-            ${q.image ? `<img src="${q.image}" alt="題目圖片" style="max-width: 100%;">` : ''}
+            ${q.image ? `<img src="${q.image}" alt="題目圖片" class="question-image">` : ''}
             <div class="answer-container">
               ${renderAnswerInput(q)}
             </div>
@@ -114,7 +293,7 @@
       switch(question.type) {
         case 'single':
           return question.options.map((opt, idx) => `
-            <div>
+            <div class="answer-option">
               <input type="radio" id="${question.id}_${idx}" name="${question.id}" value="${opt}" ${question.required ? 'required' : ''}>
               <label for="${question.id}_${idx}">${opt}</label>
             </div>
@@ -130,7 +309,7 @@
             <div class="multiple-choice-container" ${maxChoicesAttr}>
               ${maxChoicesInfo}
               ${question.options.map((opt, idx) => `
-                <div>
+                <div class="answer-option">
                   <input type="checkbox" id="${question.id}_${idx}" name="${question.id}" value="${opt}" 
                     onchange="checkMaxChoices(this)">
                   <label for="${question.id}_${idx}">${opt}</label>
@@ -198,7 +377,6 @@
       }
     }
 
-
     // 檢查多選題最多選擇數量
     function checkMaxChoices(checkbox) {
       const container = checkbox.closest('.multiple-choice-container');
@@ -212,34 +390,109 @@
       }
     }
 
+    // 驗證文本長度
+    function validateTextLength(input, minLength, maxLength) {
+      const value = input.value;
+      if (minLength && value.length < minLength) {
+        alert(`文字長度不得少於 ${minLength} 個字元`);
+        return false;
+      }
+      if (maxLength && value.length > maxLength) {
+        alert(`文字長度不得超過 ${maxLength} 個字元`);
+        return false;
+      }
+      return true;
+    }
+    
+    // 驗證數字範圍
+    function validateNumberRange(input, minValue, maxValue) {
+      const value = parseFloat(input.value);
+      if (minValue !== null && value < minValue) {
+        alert(`數值不得小於 ${minValue}`);
+        return false;
+      }
+      if (maxValue !== null && value > maxValue) {
+        alert(`數值不得大於 ${maxValue}`);
+        return false;
+      }
+      return true;
+    }
+    
+    // 驗證電子郵件格式
+    function validateEmail(input) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(input.value)) {
+        alert('請輸入有效的電子郵件地址');
+        return false;
+      }
+      return true;
+    }
+
     // 提交答案
     async function submitAnswers() {
       try {
         // 檢查必填項
         const requiredQuestions = document.querySelectorAll('.question .required');
         let allFilled = true;
+        let allValid = true;
         
-        requiredQuestions.forEach(requiredMark => {
-          const questionDiv = requiredMark.closest('.question');
+        // 檢查所有問題的有效性
+        const allQuestions = document.querySelectorAll('.question');
+        allQuestions.forEach(questionDiv => {
           const questionId = questionDiv.dataset.id;
           const questionType = questionDiv.dataset.type;
+          const input = questionDiv.querySelector(`#${questionId}`);
           
-          // 根據不同題型檢查是否已填寫
-          if (questionType === 'single') {
-            const radios = questionDiv.querySelectorAll(`input[name="${questionId}"]:checked`);
-            if (radios.length === 0) allFilled = false;
-          } else if (questionType === 'multiple') {
-            const checkboxes = questionDiv.querySelectorAll(`input[name="${questionId}"]:checked`);
-            if (checkboxes.length === 0) allFilled = false;
-          } else {
-            const input = questionDiv.querySelector(`#${questionId}`);
-            if (!input.value) allFilled = false;
+          // 找到對應的問題定義
+          const questionDef = surveyData.questions.find(q => q.id === questionId);
+          if (!questionDef) return;
+          
+          // 檢查必填項
+          if (questionDef.required) {
+            if (questionType === 'single') {
+              const radios = questionDiv.querySelectorAll(`input[name="${questionId}"]:checked`);
+              if (radios.length === 0) allFilled = false;
+            } else if (questionType === 'multiple') {
+              const checkboxes = questionDiv.querySelectorAll(`input[name="${questionId}"]:checked`);
+              if (checkboxes.length === 0) allFilled = false;
+            } else if (input && !input.value) {
+              allFilled = false;
+            }
+          }
+          
+          // 檢查驗證規則
+          if (input && input.value) {
+            if (questionType === 'text' || questionType === 'textarea') {
+              const minLength = questionDef.validation?.minLength ? parseInt(questionDef.validation.minLength) : null;
+              const maxLength = questionDef.validation?.maxLength ? parseInt(questionDef.validation.maxLength) : null;
+              if (minLength || maxLength) {
+                if (!validateTextLength(input, minLength, maxLength)) {
+                  allValid = false;
+                }
+              }
+            } else if (questionType === 'number') {
+              const minValue = questionDef.validation?.minValue ? parseFloat(questionDef.validation.minValue) : null;
+              const maxValue = questionDef.validation?.maxValue ? parseFloat(questionDef.validation.maxValue) : null;
+              if (minValue !== null || maxValue !== null) {
+                if (!validateNumberRange(input, minValue, maxValue)) {
+                  allValid = false;
+                }
+              }
+            } else if (questionType === 'email') {
+              if (!validateEmail(input)) {
+                allValid = false;
+              }
+            }
           }
         });
         
         if (!allFilled) {
           alert('請填寫所有必填項目');
           return;
+        }
+        
+        if (!allValid) {
+          return; // 已經在各驗證函數中顯示了錯誤訊息
         }
         
         // 收集答案
@@ -291,7 +544,7 @@
         if (res.ok) {
           alert('感謝您的填寫！');
           // 清空表單或跳轉到感謝頁面
-          document.getElementById('questionsContainer').innerHTML = '<h2>問卷已成功提交</h2>';
+          document.getElementById('questionsContainer').innerHTML = '<div class="question"><h2>問卷已成功提交</h2><p>感謝您的參與！</p></div>';
           document.getElementById('submitButton').style.display = 'none';
         } else {
           const error = await res.json();

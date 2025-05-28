@@ -1,60 +1,237 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>新增/編輯問卷 - 學術問卷系統</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=Noto+Serif:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="academic-survey.css">
+  <!-- 引入 Sortable.js 庫 -->
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-  <title>新增/編輯問卷</title>
   <style>
     .question-container {
-      border: 1px solid #ccc;
-      padding: 10px;
-      margin-bottom: 10px;
-      border-radius: 5px;
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
+      background-color: white;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      position: relative;
     }
+    
     .drag-handle {
       cursor: grab;
       font-size: 1.5em;
       user-select: none;
-      margin-right: 8px;
+      margin-right: 15px;
+      color: var(--primary-color);
     }
+    
     .options-container {
-      margin-top: 10px;
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid var(--border-color);
     }
+    
+    .option-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .option-item input {
+      flex-grow: 1;
+      margin-right: 10px;
+      margin-bottom: 0;
+    }
+    
+    .option-item button {
+      background-color: var(--error-color);
+      padding: 5px 10px;
+    }
+    
+    .question-actions {
+      margin-top: 15px;
+      display: flex;
+      gap: 10px;
+    }
+    
+    .validation-options {
+      background-color: #f9f9f9;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 15px 0;
+    }
+    
+    .validation-options label {
+      display: inline-block;
+      margin-right: 15px;
+    }
+    
+    .validation-options input {
+      width: 100px;
+      display: inline-block;
+    }
+    
+    .image-upload-container {
+      margin: 15px 0;
+    }
+    
+    .image-preview {
+      margin-top: 10px;
+      position: relative;
+    }
+    
+    .image-preview img {
+      max-width: 200px;
+      max-height: 200px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+    }
+    
+    .image-preview button {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      background-color: var(--error-color);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .live-preview {
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+      border: 2px dashed var(--secondary-color);
+    }
+    
+    .live-preview h2 {
+      color: var(--primary-color);
+      margin-top: 0;
+    }
+    
+    .pagination-controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    
+    .page-button {
+      padding: 8px 15px;
+      background-color: white;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    .page-button.active {
+      background-color: var(--secondary-color);
+      color: white;
+      border-color: var(--secondary-color);
+    }
+    
+    .main-actions {
+      display: flex;
+      gap: 15px;
+      margin: 20px 0;
+    }
+    
+    .main-actions button {
+      flex: 1;
+      padding: 12px;
+      font-size: 16px;
+    }
+    
     textarea {
-      resize: none;
+      min-height: 100px;
+      resize: vertical;
     }
   </style>
 </head>
 <body>
-  <h1>新增/編輯問卷</h1>
-  
-  <!-- 分頁切換按鈕 -->
-  <div id="paginationControls">
-    <button type="button" onclick="addPage()">新增分頁</button>
-    <button type="button" onclick="exportSurvey()">匯出問卷</button>
-    <input type="file" id="importFile" style="display:none" accept=".json" onchange="importSurvey(event)">
-    <button type="button" onclick="document.getElementById('importFile').click()">匯入問卷</button>
-    <div id="pageButtons"></div>
+  <header>
+    <div class="header-content">
+      <div class="logo">學術問卷系統</div>
+      <nav>
+        <ul>
+          <li><a href="dashboard.html">問卷總覽</a></li>
+          <li><a href="new.html" class="active">新增問卷</a></li>
+          <li><a href="#" onclick="logout()">登出</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <div class="container">
+    <h1>新增/編輯問卷</h1>
+    
+    <!-- 分頁切換按鈕 -->
+    <div id="paginationControls" class="pagination-controls">
+      <button type="button" class="btn" onclick="addPage()">新增分頁</button>
+      <button type="button" class="btn btn-primary" onclick="exportSurvey()">匯出問卷</button>
+      <input type="file" id="importFile" style="display:none" accept=".json" onchange="importSurvey(event)">
+      <button type="button" class="btn" onclick="document.getElementById('importFile').click()">匯入問卷</button>
+      <div id="pageButtons"></div>
+    </div>
+    
+    <!-- 即時顯示區域 -->
+    <div class="live-preview">
+      <h2 id="liveTitle">問卷標題即時顯示</h2>
+      <p id="liveDescription">問卷描述即時顯示</p>
+    </div>
+    
+    <form id="surveyForm" class="card">
+      <div class="form-group">
+        <label for="title">問卷標題</label>
+        <input type="text" id="title" placeholder="請輸入問卷標題" required oninput="updateLiveTitle(this.value)">
+      </div>
+      
+      <div class="form-group">
+        <label for="description">問卷描述</label>
+        <textarea id="description" placeholder="請輸入問卷描述" oninput="updateLiveDescription(this.value)"></textarea>
+      </div>
+      
+      <div id="questionsContainer"></div>
+      
+      <div class="main-actions">
+        <button type="button" class="btn" onclick="addQuestion()">新增題目</button>
+        <button type="button" class="btn btn-primary" onclick="previewSurvey()">預覽問卷</button>
+        <button type="button" id="saveButton" class="btn btn-success" onclick="saveSurvey()">儲存問卷</button>
+      </div>
+    </form>
   </div>
-  
-  <!-- 即時顯示區域 -->
-  <h2 id="liveTitle">問卷標題即時顯示</h2>
-  <p id="liveDescription">問卷描述即時顯示</p>
-  
-  <form id="surveyForm">
-    <input type="text" id="title" placeholder="問卷標題" required oninput="updateLiveTitle(this.value)">
-    <textarea id="description" placeholder="問卷描述" oninput="updateLiveDescription(this.value)"></textarea>
-    <div id="questionsContainer"></div>
-    <button type="button" onclick="addQuestion()">新增題目</button>
-    <button type="button" onclick="previewSurvey()">預覽問卷</button>
-    <button type="button" id="saveButton" onclick="saveSurvey()">儲存問卷</button>
-  </form>
+
+  <footer>
+    <p>&copy; 2023 學術問卷系統 - 為碩博士生研究提供支持</p>
+  </footer>
 
   <script>
+    // 處理 API 響應，檢查 token 是否失效
+    function handleApiResponse(response) {
+      if (response.status === 401 || response.status === 403) {
+        alert('登入已過時，請重新登入!');
+        localStorage.removeItem('token'); // 清除失效的 token
+        window.location.href = 'index.html'; // 重定向到登入頁面
+        return null;
+      }
+      return response;
+    }
+    
+    // 登出功能
+    function logout() {
+      localStorage.removeItem('token');
+      window.location.href = 'index.html';
+    }
+    
     const API_URL = 'http://localhost:5000/api/surveys';
     let questions = [];
     let currentPage = 1; // 當前分頁
@@ -62,7 +239,6 @@
     let isEditMode = false;
     let editingSurveyId = null;
     
-
     // 新增分頁
     function addPage() {
       totalPages++;
@@ -179,19 +355,19 @@
     async function uploadQuestionImage(questionId, event) {
       const file = event.target.files[0];
       if (!file) return;
-  
+
       // 檢查檔案類型
       if (!file.type.startsWith('image/')) {
         alert('請上傳圖片檔案');
         return;
       }
-  
+
       // 檢查檔案大小 (限制為 5MB)
       if (file.size > 5 * 1024 * 1024) {
         alert('圖片大小不能超過 5MB');
         return;
       }
-  
+
       try {
         // 顯示上傳中提示
         const loadingMsg = `正在上傳圖片...`;
@@ -203,24 +379,29 @@
         // 建立 FormData 物件
         const formData = new FormData();
         formData.append('image', file);
-    
+        
         // 上傳圖片到伺服器
         const token = localStorage.getItem('token');
-        const res = await fetch('http://localhost:5000/api/upload', {
+        let res = await fetch('http://localhost:5000/api/upload', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
           },
           body: formData
         });
+        
+        // 處理 token 失效的情況
+        res = handleApiResponse(res);
+        if (!res) return; // 如果 token 失效，handleApiResponse 會返回 null
+        
         // 移除上傳中提示
         const loadingElement = document.getElementById(`loading-${questionId}`);
         if (loadingElement) loadingElement.remove();
-    
+        
         if (res.ok) {
           const data = await res.json();
           console.log('上傳成功:', data);
-      
+          
           // 測試圖片 URL
           try {
             await testImageUrl(data.imageUrl);
@@ -229,14 +410,14 @@
             console.error('圖片 URL 無效');
             alert('圖片上傳成功，但無法顯示。請檢查伺服器設置。');
           }
-      
+          
           // 更新題目的圖片屬性
           const question = questions.find(q => q.id === questionId);
           question.image = data.imageUrl;
           renderQuestions();
         } else {
-      let errorMsg = '上傳失敗';
-      try {
+          let errorMsg = '上傳失敗';
+          try {
             const errorData = await res.json();
             errorMsg = errorData.error || '未知錯誤';
           } catch (e) {
@@ -387,11 +568,13 @@
       return '';
     }
 
-
-    
     // 初始化
-    renderPaginationControls();
-    renderQuestions();
+    document.addEventListener('DOMContentLoaded', async function() {
+      renderPaginationControls();
+      renderQuestions();
+      // 檢查是否為編輯模式並載入問卷數據
+      await checkEditMode();
+    });
 
     // 預覽問卷
     function previewSurvey() {
@@ -493,7 +676,7 @@
       const userId = localStorage.getItem('userId');
 
       try {
-        const res = await fetch('http://localhost:5000/api/surveys', {
+        let res = await fetch('http://localhost:5000/api/surveys', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -502,9 +685,14 @@
           body: JSON.stringify({        
             title,
             description,
-            questions
+            questions,
+            userId
           }),
         });
+
+        // 處理 token 失效的情況
+        res = handleApiResponse(res);
+        if (!res) return; // 如果 token 失效，handleApiResponse 會返回 null
 
         if (res.ok) {
           const survey = await res.json();
@@ -600,17 +788,21 @@
       const token = localStorage.getItem('token');
       if (!token) {
         alert('請先登入');
-        window.location.href = 'login.html';
+        window.location.href = 'index.html';
         return;
       }
       
       try {
         console.log('正在載入問卷:', surveyId);
-        const res = await fetch(`${API_URL}/${surveyId}`, {
+        let res = await fetch(`${API_URL}/${surveyId}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
+      
+        // 處理 token 失效的情況
+        res = handleApiResponse(res);
+        if (!res) return; // 如果 token 失效，handleApiResponse 會返回 null
       
         if (res.ok) {
           const survey = await res.json();
@@ -628,25 +820,46 @@
           if (Array.isArray(survey.questions)) {
             questions = survey.questions;
 
-            // 確保每個問題都有 id
+            // 確保每個問題都有 id、page 和 validation 屬性
             questions = questions.map((q, index) => {
               if (!q.id) {
                 q.id = `q${index}`;
               }
+              // 確保每個問題都有 page 屬性
+              if (!q.page) {
+                q.page = 1;
+              }
+              // 確保每個問題都有 validation 屬性
+              if (!q.validation) {
+                q.validation = {
+                  minValue: '',
+                  maxValue: '',
+                  minLength: '',
+                  maxLength: '',
+                  pattern: '',
+                  maxChoices: ''
+                };
+              }
+              // 確保每個問題都有 options 屬性
+              if (!q.options) {
+                q.options = [];
+              }
               return q;
             });
+            
             // 確定總頁數
-            const pages = questions.map(q => q.page || 1);
             const maxPage = Math.max(...questions.map(q => q.page || 1), 1);
             totalPages = maxPage;
             currentPage = 1;
           
             renderPaginationControls();
             renderQuestions();
-        } else {
-        console.log('問卷沒有題目或題目格式不正確');
-        questions = [];
-      }
+            
+            console.log('問卷題目已載入:', questions);
+          } else {
+            console.log('問卷沒有題目或題目格式不正確');
+            questions = [];
+          }
         
           // 修改儲存按鈕行為
           document.getElementById('saveButton').onclick = function() {
@@ -661,16 +874,16 @@
         alert('載入問卷失敗');
       }
     }
-  
+
     // 更新問卷
     async function updateSurvey(surveyId) {
       const title = document.getElementById('title').value;
       const description = document.getElementById('description').value;
       const token = localStorage.getItem('token');
-    
+
       try {
         console.log('正在更新問卷:', surveyId);
-        const res = await fetch(`${API_URL}/${surveyId}`, {
+        let res = await fetch(`${API_URL}/${surveyId}`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -682,6 +895,10 @@
             questions
           })
         });
+        
+        // 處理 token 失效的情況
+        res = handleApiResponse(res);
+        if (!res) return; // 如果 token 失效，handleApiResponse 會返回 null
       
         if (res.ok) {
           alert('問卷更新成功！');
@@ -695,14 +912,6 @@
         alert('伺服器錯誤，請稍後再試');
       }
     }
-  
-    // 頁面載入時執行
-    document.addEventListener('DOMContentLoaded', async function() {
-      await checkEditMode();
-      if (!isEditMode) {
-        loadSurvey();
-      }
-    });
   </script>
 </body>
 </html>

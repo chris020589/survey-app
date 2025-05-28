@@ -1,26 +1,163 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>問卷預覽</title>
+  <title>問卷預覽 - 學術問卷系統</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=Noto+Serif:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="academic-survey.css">
   <style>
-  .validation-info {
-    font-size: 0.9em;
-    color: #666;
-    margin-top: 5px;
-    font-style: italic;
-  }
-</style>
+    .preview-container {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      padding: 30px;
+      margin-bottom: 30px;
+    }
+    
+    .question-preview {
+      background-color: #f9f9f9;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .question-preview h3 {
+      color: var(--primary-color);
+      margin-top: 0;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+      margin-bottom: 15px;
+    }
+    
+    .option-preview {
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+    }
+    
+    .option-preview input {
+      margin-right: 10px;
+    }
+    
+    .validation-info {
+      font-size: 0.9em;
+      color: #666;
+      margin-top: 5px;
+      margin-bottom: 15px;
+      font-style: italic;
+      background-color: #f0f0f0;
+      padding: 8px;
+      border-radius: 4px;
+      border-left: 3px solid var(--secondary-color);
+    }
+    
+    .preview-actions {
+      display: flex;
+      gap: 15px;
+      margin-top: 30px;
+    }
+    
+    .preview-actions button {
+      flex: 1;
+      padding: 12px;
+      font-size: 16px;
+    }
+    
+    .survey-header {
+      margin-bottom: 30px;
+    }
+    
+    .survey-header h1 {
+      color: var(--primary-color);
+      margin-bottom: 10px;
+    }
+    
+    .survey-header p {
+      color: #555;
+      font-size: 1.1em;
+      line-height: 1.5;
+    }
+    
+    .form-control {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0 15px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background-color: #f8f8f8;
+    }
+    
+    .image-preview {
+      max-width: 100%;
+      margin-bottom: 15px;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    
+    .image-preview img {
+      max-width: 100%;
+      display: block;
+    }
+  </style>
 </head>
 <body>
-  <h1 id="surveyTitle"></h1>
-  <p id="surveyDescription"></p>
-  <div id="questionsContainer"></div>
-  <button type="button" onclick="goBack()">返回更改</button>
-  <button type="button" onclick="saveSurvey()">新增並儲存問卷</button>
+  <header>
+    <div class="header-content">
+      <div class="logo">學術問卷系統</div>
+      <nav>
+        <ul>
+          <li><a href="dashboard.html">問卷總覽</a></li>
+          <li><a href="new.html">新增問卷</a></li>
+          <li><a href="#" onclick="logout()">登出</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <div class="container">
+    <h1>問卷預覽</h1>
+    <p>請確認問卷內容無誤後再儲存</p>
+    
+    <div class="preview-container">
+      <div class="survey-header">
+        <h1 id="surveyTitle"></h1>
+        <p id="surveyDescription"></p>
+      </div>
+      
+      <div id="questionsContainer"></div>
+      
+      <div class="preview-actions">
+        <button type="button" class="btn btn-primary" onclick="goBack()">返回編輯</button>
+        <button type="button" class="btn btn-success" onclick="saveSurvey()">儲存問卷</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p>&copy; 2023 學術問卷系統 - 為碩博士生研究提供支持</p>
+  </footer>
 
   <script>
+    // 處理 API 響應，檢查 token 是否失效
+    function handleApiResponse(response) {
+      if (response.status === 401 || response.status === 403) {
+        alert('登入已過時，請重新登入!');
+        localStorage.removeItem('token'); // 清除失效的 token
+        window.location.href = 'index.html'; // 重定向到登入頁面
+        return null;
+      }
+      return response;
+    }
+    
+    // 登出功能
+    function logout() {
+      localStorage.removeItem('token');
+      window.location.href = 'index.html';
+    }
+    
     // 檢查是否是預覽模式
     const isPreview = new URLSearchParams(window.location.search).get('preview') === 'true';
 
@@ -33,10 +170,10 @@
 
       // 渲染問卷題目
       const container = document.getElementById('questionsContainer');
-      survey.questions.forEach((q) => {
+      survey.questions.forEach((q, index) => {
         const questionHtml = `
-          <div>
-            <h3>${q.text}</h3>
+          <div class="question-preview">
+            <h3>${index + 1}. ${q.text} ${q.required ? '<span class="required">*</span>' : ''}</h3>
             ${renderQuestionOptions(q)}
           </div>
         `;
@@ -50,7 +187,7 @@
 
       // 先顯示題目圖片（如果有）
       if (question.image) {
-        html += `<div><img src="${question.image}" alt="題目圖片" style="max-width: 100%; margin-bottom: 10px;"></div>`;
+        html += `<div class="image-preview"><img src="${question.image}" alt="題目圖片"></div>`;
       }
 
       // 顯示驗證信息
@@ -73,33 +210,33 @@
       // 顯示題目類型的選項
       if (question.type === 'single' || question.type === 'multiple') {
         html += question.options.map(opt => `
-          <div>
+          <div class="option-preview">
             <input type="${question.type === 'single' ? 'radio' : 'checkbox'}" disabled>
             <label>${opt}</label>
           </div>
         `).join('');
       } else if (question.type === 'dropdown') {
         html += `
-          <select disabled style="display: block; width: 100%; padding: 8px; margin: 5px 0;">
+          <select class="form-control" disabled>
             <option>請選擇...</option>
             ${question.options.map(opt => `<option>${opt}</option>`).join('')}
           </select>
         `;
       } else if (question.type === 'text') {
-        html += `<input type="text" disabled style="display: block; width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ccc;">`;
+        html += `<input type="text" class="form-control" disabled placeholder="文字回答">`;
       } else if (question.type === 'textarea') {
-        html += `<textarea disabled style="display: block; width: 100%; height: 100px; padding: 8px; margin: 5px 0; border: 1px solid #ccc;"></textarea>`;
+        html += `<textarea class="form-control" disabled placeholder="詳細回答" style="height: 100px;"></textarea>`;
       } else if (question.type === 'date') {
-        html += `<input type="date" disabled style="display: block; width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ccc;">`;
+        html += `<input type="date" class="form-control" disabled>`;
       } else if (question.type === 'time') {
-        html += `<input type="time" disabled style="display: block; width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ccc;">`;
+        html += `<input type="time" class="form-control" disabled>`;
       } else if (question.type === 'number') {
-        html += `<input type="number" disabled style="display: block; width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ccc;">`;
+        html += `<input type="number" class="form-control" disabled placeholder="數字回答">`;
       } else if (question.type === 'email') {
-        html += `<input type="email" disabled style="display: block; width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ccc;">`;
+        html += `<input type="email" class="form-control" disabled placeholder="電子郵件">`;
       } else if (question.type === 'file') {
         html += `
-          <div style="display: block; width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ccc; background-color: #f8f8f8;">
+          <div class="form-control" style="background-color: #f8f8f8;">
             <span>選擇檔案</span>
             <span style="margin-left: 10px; color: #888;">未選擇任何檔案</span>
           </div>
@@ -108,7 +245,6 @@
 
       return html;
     }
-
 
     // 返回更改
     function goBack() {
@@ -142,7 +278,7 @@
         });
 
         // 使用與 new.html 相同的 API 端點
-        const res = await fetch('http://localhost:5000/api/surveys', {
+        let res = await fetch('http://localhost:5000/api/surveys', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -155,6 +291,10 @@
             // userId
           }),
         });
+
+        // 處理 token 失效的情況
+        res = handleApiResponse(res);
+        if (!res) return; // 如果 token 失效，handleApiResponse 會返回 null
 
         if (res.ok) {
           const savedSurvey = await res.json();
@@ -180,8 +320,6 @@
         alert(`伺服器錯誤，請稍後再試\n錯誤詳情: ${err.message}`);
       }
     }
-
-
   </script>
 </body>
 </html>
