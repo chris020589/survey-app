@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>問卷總覽 - 學術問卷系統</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=Noto+Serif:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="academic-survey.css">
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <div class="logo">學術問卷系統</div>
+      <nav>
+        <ul>
+          <li><a href="dashboard.html">問卷總覽</a></li>
+          <li><a href="new.html">新增問卷</a></li>
+          <li><a href="#" onclick="logout()">登出</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <div class="container">
+    <h1>問卷總覽</h1>
+    
+    <div class="actions">
+      <button class="btn btn-primary" onclick="goToNewSurvey()">新增問卷</button>
+    </div>
+    
+    <div id="surveyList"></div>
+  </div>
+
+  <footer>
+    <p>&copy; 2023 學術問卷系統 - 為碩博士生研究提供支持</p>
+  </footer>
+  
+  <script>
+    // 處理 API 響應，檢查 token 是否失效
+    function handleApiResponse(response) {
+      if (response.status === 401 || response.status === 403) {
+        alert('登入已過時，請重新登入!');
+        localStorage.removeItem('token'); // 清除失效的 token
+        window.location.href = 'index.html'; // 重定向到登入頁面
+        return null;
+      }
+      return response;
+    }
+
+    // 登出功能
+    function logout() {
+      localStorage.removeItem('token');
+      window.location.href = 'index.html';
+    }
+
+    const API_URL = 'http://localhost:5000/api/surveys';
+
+    // 跳轉到 new.html
+    function goToNewSurvey() {
+      window.location.href = 'new.html';
+    }
+
+    // 獲取問卷列表
+    async function fetchSurveys() {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          alert('請先登入');
+          window.location.href = 'index.html'; // 跳轉到登入頁面
+          return;
+        }
+
+        let res = await fetch(API_URL, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        res = handleApiResponse(res);
+        if (!res) return; // 如果 token 失效，handleApiResponse 會返回 null
+
+        if (!res.ok) {
+          throw new Error('無法獲取問卷列表');
+        }
+
+        const data = await res.json();
+      
+        const surveyList = document.getElementById('surveyList');
+        surveyList.innerHTML = '';
+      
+        if (data.message) {
+          // 沒有問卷
+          surveyList.innerHTML = `<div class="card"><p>${data.message}</p></div>`;
+          return;
+        }
+
+        // 如果問卷列表為空，顯示提示
+        if (Array.isArray(data) && data.length === 0) {
+          surveyList.innerHTML = `<div class="card"><p>您目前沒有任何問卷，請先去新增問卷</p></div>`;
+          return;
+        }
+      
+        data.forEach(survey => {
+          surveyList.innerHTML += `
+            <div class="survey-item">
+              <h3>${survey.title}</h3>
+              <p>${survey.description}</p>
+              <div class="survey-actions">
+                <button class="btn" onclick="viewResults('${survey._id}')">查看結果</button>
+                <button class="btn btn-primary" onclick="editSurvey('${survey._id}')">編輯問卷</button>
+                <button class="btn btn-success" onclick="shareSurvey('${survey._id}')">分享問卷</button>
+                <button class="btn btn-accent" onclick="deleteSurvey('${survey._id}')">刪除問卷</button>
+              </div>
+            </div>
+          `;
+        });
+      } catch (err) {
+        console.error('獲取問卷失敗:', err);
+        alert('載入問卷列表失敗，請稍後再試');
+      }
+    }
+  
+    // 分享問卷
+    async function shareSurvey(surveyId) {
+      try {
+        const token = localStorage.getItem('token');
+        let res = await fetch(`${API_URL}/${surveyId}/share`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+    
+        if (res.ok) {
+          const data = await res.json();
+          // 創建一個臨時輸入框來複製連結
+          const tempInput = document.createElement('input');
+          tempInput.value = data.shareLink;
+          document.body.appendChild(tempInput);
+          tempInput.select();
+          document.execCommand('copy');
+          document.body.removeChild(tempInput);
+      
+          alert(`分享連結已複製到剪貼簿：\n${data.shareLink}`);
+        } else {
+          const error = await res.json();
+          alert(`生成分享連結失敗：${error.error || '未知錯誤'}`);
+        }
+      } catch (err) {
+        console.error('分享問卷失敗:', err);
+        alert('伺服器錯誤，請稍後再試');
+      }
+    }
+
+    // 編輯問卷
+    function editSurvey(surveyId) {
+      console.log('編輯問卷:', surveyId);
+      // 將問卷 ID 存入 localStorage，以便在 new.html 中獲取
+      localStorage.setItem('editingSurveyId', surveyId);
+      // 跳轉到 new.html
+      window.location.href = 'new.html?edit=true';
+    }
+
+    // 查看結果
+    function viewResults(surveyId) {
+      // 跳轉到 results.html 頁面，並傳遞問卷 ID
+      window.location.href = `results.html?id=${surveyId}`;
+    }
+
+    // 刪除問卷
+    async function deleteSurvey(surveyId) {
+      const confirmDelete = confirm('確定要刪除此問卷嗎？此操作無法復原！');
+      if (!confirmDelete) {
+        return; // 如果使用者取消，則不執行刪除
+      }
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('請先登入！');
+        return;
+      }
+
+      try {
+        let res = await fetch(`${API_URL}/${surveyId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (res.ok) {
+          alert('問卷已成功刪除！');
+          // 刪除成功後重新載入問卷列表
+          fetchSurveys();
+        } else {
+          const error = await res.json();
+          alert(`刪除問卷失敗！原因：${error.error || '未知錯誤'}`);
+        }
+      } catch (err) {
+        console.error('刪除問卷時發生錯誤:', err);
+        alert('伺服器錯誤，請稍後再試');
+      }
+    }
+
+    // 載入統計數據
+    async function loadStats(surveyId) {
+      try {
+        const token = localStorage.getItem('token');
+        let res = await fetch(`${API_URL}/${surveyId}/stats`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            //'Content-Type': 'application/json',
+            //'Accept': 'application/json'
+          }
+        });
+
+        if (!res.ok) {
+          throw new Error('無法獲取統計數據');
+        }
+
+        const stats = await res.json();
+        alert(JSON.stringify(stats)); // 可以改為更友好的顯示方式
+      } catch (err) {
+        console.error(err);
+        alert('載入統計數據失敗，請稍後再試');
+      }
+    }
+
+    // 頁面載入時獲取問卷列表
+    document.addEventListener('DOMContentLoaded', fetchSurveys);
+  </script>
+</body>
+</html>

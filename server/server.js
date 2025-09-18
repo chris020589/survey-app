@@ -1,94 +1,73 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const cors = require('cors');
+// 載入環境變數
+require('dotenv').config();
 
+// 初始化 Express 應用程式
+const express = require('express');
 const app = express();
+
+// 初始化必要的模組
+const mongoose = require('mongoose');
+const cors = require('cors');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const path = require('path');
+
+
+// 路由與中介層
+const surveyRoutes = require('./routes/surveys');
+const { auth, router: authRoutes } = require('./routes/auth'); // 引入 auth 函數和路由
+const uploadRoutes = require('./routes/upload');
+const User = require('./models/User');
+const Survey = require('./models/Survey');
+const Answer = require('./models/Answer');
+
+// 啟用 JSON 解析中介軟體
 app.use(cors());
 app.use(express.json());
 
-// 連線到本地 MongoDB
-mongoose.connect('mongodb://127.0.0.1:27017/survey-app', {
+// 路由
+app.use('/api/auth', authRoutes);
+app.use('/api/surveys', surveyRoutes);
+app.use('/api/upload', uploadRoutes);
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(express.static(path.join(__dirname, '../public')));
+
+// 日誌檢查請求體
+app.use((req, res, next) => {
+  if (req.method === 'POST' && !req.is('multipart/form-data')) {
+    console.log('收到的請求體:', req.body);
+  }
+  next();
+});
+
+// 測試環境變數是否正確載入
+// console.log('SECRET_KEY:', process.env.SECRET_KEY); 
+// console.log('PORT:', process.env.PORT);
+// console.log('JWT_SECRET:', process.env.JWT_SECRET);
+
+// 連接 MongoDB
+const MONGO_URI = process.env.MONGODB_URI;
+mongoose.connect(MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
+})
+  .then(() => console.log('✅ 已連線到 MongoDB'))
+  .catch(err => console.error('❌ MongoDB 連線失敗:', err));
+
+// 啟動伺服器
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`🚀 伺服器啟動於 http://localhost:${PORT}`);
 });
 
-// Schemas
-const UserSchema = new mongoose.Schema({
-  email: String,
-  password: String,
+// 處理前端路由 - 確保問卷填寫頁面可以被訪問
+app.get('/fill.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/fill.html'));
 });
 
-const SurveySchema = new mongoose.Schema({
-  title: String,
-  description: String,
-  answers: [{ age: Number }],
+// 全域錯誤處理中介層
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: '伺服器錯誤' }); // 返回 JSON 格式
 });
 
-const User = mongoose.model('User', UserSchema);
-const Survey = mongoose.model('Survey', SurveySchema);
-
-// JWT 驗證
-const auth = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.sendStatus(401);
-  jwt.verify(token, 'secret', (err, user) => {
-    if (err) return res.sendStatus(403);
-    req.user = user;
-    next();
-  });
-};
-
-// API 路由
-app.post('/api/register', async (req, res) => {
-  const hashed = await bcrypt.hash(req.body.password, 10);
-  const user = new User({ email: req.body.email, password: hashed });
-  await user.save();
-  res.sendStatus(201);
-});
-
-app.post('/api/login', async (req, res) => {
-  const user = await User.findOne({ email: req.body.email });
-  if (!user || !(await bcrypt.compare(req.body.password, user.password))) {
-    return res.sendStatus(401);
-  }
-  const token = jwt.sign({ id: user._id }, 'secret');
-  res.json({ token });
-});
-
-app.get('/api/surveys', auth, async (req, res) => {
-  const surveys = await Survey.find();
-  res.json(surveys);
-});
-
-app.post('/api/surveys', auth, async (req, res) => {
-  const survey = new Survey({ title: req.body.title, description: req.body.description, answers: [] });
-  await survey.save();
-  res.sendStatus(201);
-});
-
-app.post('/api/surveys/:id/answers', auth, async (req, res) => {
-  const survey = await Survey.findById(req.params.id);
-  survey.answers.push({ age: req.body.age });
-  await survey.save();
-  res.sendStatus(201);
-});
-
-app.get('/api/surveys/:id/results', auth, async (req, res) => {
-  const survey = await Survey.findById(req.params.id);
-  const counts = {};
-  survey.answers.forEach((a) => {
-    counts[a.age] = (counts[a.age] || 0) + 1;
-  });
-  const results = Object.entries(counts).map(([k, v]) => ({ _id: k, count: v }));
-  res.json(results);
-});
-
-app.delete('/api/surveys/:id', auth, async (req, res) => {
-  await Survey.findByIdAndDelete(req.params.id);
-  res.sendStatus(204);
-});
-
-// 啟動
-app.listen(5000, () => console.log('Server running on http://localhost:5000'));

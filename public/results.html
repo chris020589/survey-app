@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>問卷結果 - 學術問卷系統</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=Noto+Serif:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="academic-survey.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --primary-color: #2c3e50;
+      --secondary-color: #3498db;
+      --accent-color: #e74c3c;
+      --background-color: #f5f7fa;
+      --text-color: #333;
+      --border-color: #ddd;
+      --success-color: #27ae60;
+      --warning-color: #f39c12;
+      --error-color: #c0392b;
+      --font-main: 'Noto Sans', 'Segoe UI', Roboto, Arial, sans-serif;
+      --font-heading: 'Noto Serif', Georgia, 'Times New Roman', serif;
+    }
+    
+    body {
+      font-family: var(--font-main);
+      background-color: var(--background-color);
+      color: var(--text-color);
+      line-height: 1.6;
+      padding: 0;
+      margin: 0;
+    }
+    
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    header {
+      background-color: var(--primary-color);
+      color: white;
+      padding: 1rem 0;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+    
+    .logo {
+      font-family: var(--font-heading);
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+    
+    nav ul {
+      display: flex;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    
+    nav ul li {
+      margin-left: 20px;
+    }
+    
+    nav ul li a {
+      color: white;
+      text-decoration: none;
+      transition: color 0.3s;
+    }
+    
+    nav ul li a:hover {
+      color: var(--secondary-color);
+    }
+    
+    h1, h2, h3, h4 {
+      font-family: var(--font-heading);
+      color: var(--primary-color);
+    }
+    
+    h1 {
+      font-size: 2.2rem;
+      margin-bottom: 0.5rem;
+      border-bottom: 2px solid var(--secondary-color);
+      padding-bottom: 0.5rem;
+    }
+    
+    .question-result {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      padding: 20px;
+      margin-bottom: 25px;
+    }
+    
+    .question-result h3 {
+      color: var(--primary-color);
+      margin-top: 0;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .chart-container {
+      height: 300px;
+      margin: 20px 0;
+      position: relative;
+    }
+    
+    .btn {
+      background-color: var(--secondary-color);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: var(--font-main);
+      font-size: 1rem;
+      font-weight: bold;
+      transition: background-color 0.3s;
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    .btn:hover {
+      background-color: #2980b9;
+    }
+    
+    .btn-secondary {
+      background-color: var(--primary-color);
+    }
+    
+    .btn-secondary:hover {
+      background-color: #1a252f;
+    }
+    
+    .actions {
+      margin-top: 30px;
+      display: flex;
+      gap: 15px;
+    }
+    
+    .summary {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      padding: 20px;
+      margin-bottom: 25px;
+      border-left: 4px solid var(--secondary-color);
+    }
+    
+    .summary h3 {
+      color: var(--primary-color);
+      margin-top: 0;
+      margin-bottom: 15px;
+    }
+    
+    .result-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    
+    .result-table th {
+      text-align: left;
+      padding: 10px;
+      border-bottom: 2px solid var(--border-color);
+      color: var(--primary-color);
+      font-weight: bold;
+    }
+    
+    .result-table td {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .result-table td:nth-child(2),
+    .result-table td:nth-child(3) {
+      text-align: right;
+    }
+    
+    .text-answers {
+      background-color: #f9f9f9;
+      padding: 15px;
+      border-radius: 5px;
+      margin-top: 15px;
+    }
+    
+    .text-answers h4 {
+      color: var(--primary-color);
+      margin-top: 0;
+      margin-bottom: 10px;
+    }
+    
+    .text-answers ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+    
+    .text-answers li {
+      margin-bottom: 5px;
+    }
+    
+    footer {
+      background-color: var(--primary-color);
+      color: white;
+      text-align: center;
+      padding: 20px 0;
+      margin-top: 40px;
+    }
+    
+    .error-message {
+      color: var(--error-color);
+      background-color: #fdf2f2;
+      padding: 15px;
+      border-radius: 5px;
+      border-left: 4px solid var(--error-color);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <div class="logo">學術問卷系統</div>
+      <nav>
+        <ul>
+          <li><a href="dashboard.html">問卷總覽</a></li>
+          <li><a href="new.html">新增問卷</a></li>
+          <li><a href="#" onclick="logout()">登出</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <div class="container">
+    <h1 id="surveyTitle">問卷結果</h1>
+    <p id="surveyDescription"></p>
+    
+    <div class="summary">
+      <h3>總覽</h3>
+      <p id="totalResponses">總回答數: 載入中...</p>
+      <p id="completionRate">完成率: 載入中...</p>
+      <p id="averageTime">平均填寫時間: 載入中...</p>
+    </div>
+    
+    <div id="resultsContainer">載入中...</div>
+    
+    <div class="actions">
+      <button class="btn" onclick="exportCSV()">匯出 CSV</button>
+      <button class="btn btn-secondary" onclick="window.location.href='dashboard.html'">返回儀表板</button>
+    </div>
+  </div>
+
+  <footer>
+    <p>&copy; 2023 學術問卷系統 - 為碩博士生研究提供支持</p>
+  </footer>
+
+  <script>
+    // 處理 API 響應，檢查 token 是否失效
+    function handleApiResponse(response) {
+      if (response.status === 401 || response.status === 403) {
+        alert('登入已過時，請重新登入!');
+        localStorage.removeItem('token'); // 清除失效的 token
+        window.location.href = 'index.html'; // 重定向到登入頁面
+        return null;
+      }
+      return response;
+    }
+    
+    // 登出功能
+    function logout() {
+      localStorage.removeItem('token');
+      window.location.href = 'index.html';
+    }
+    
+    const API_URL = 'http://localhost:5000/api/surveys';
+    const surveyId = new URLSearchParams(window.location.search).get('id');
+    let surveyData = null;
+    let answersData = null;
+
+    async function loadSurveyDetails() {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          alert('請先登入!');
+          window.location.href = 'index.html';
+          return;
+        }
+        
+        let res = await fetch(`${API_URL}/${surveyId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        // 處理 token 失效的情況
+        res = handleApiResponse(res);
+        if (!res) return; // 如果 token 失效，handleApiResponse 會返回 null
+        
+        if (!res.ok) {
+          throw new Error('無法獲取問卷詳情');
+        }
+        
+        surveyData = await res.json();
+        document.getElementById('surveyTitle').textContent = surveyData.title;
+        document.getElementById('surveyDescription').textContent = surveyData.description;
+        
+        // 載入問卷結果
+        await loadResults();
+      } catch (err) {
+        console.error('載入問卷詳情失敗:', err);
+        document.getElementById('resultsContainer').innerHTML = `<p class="error-message">載入失敗: ${err.message}</p>`;
+      }
+    }
+
+    async function loadResults() {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.error('未找到 token');
+          document.getElementById('resultsContainer').innerHTML = '<p class="error-message">請先登入</p>';
+          window.location.href = 'index.html';
+          return;
+        }
+        
+        console.log('正在請求問卷結果...');
+        let res = await fetch(`${API_URL}/${surveyId}/stats`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        // 處理 token 失效的情況
+        res = handleApiResponse(res);
+        if (!res) return; // 如果 token 失效，handleApiResponse 會返回 null
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error('獲取問卷結果失敗:', res.status, errorText);
+          throw new Error(`無法獲取問卷結果: ${res.status} ${errorText}`);
+        }
+
+        answersData = await res.json();
+        console.log('問卷結果數據:', answersData);
+        
+        // 獲取所有回答
+        let answersRes = await fetch(`${API_URL}/${surveyId}/answers`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        // 處理 token 失效的情況
+        answersRes = handleApiResponse(answersRes);
+        if (!answersRes) return; // 如果 token 失效，handleApiResponse 會返回 null
+        
+        if (!answersRes.ok) {
+          throw new Error('無法獲取問卷回答');
+        }
+        
+        const allAnswers = await answersRes.json();
+        
+        // 更新總覽信息
+        document.getElementById('totalResponses').textContent = `總回答數: ${allAnswers.length || 0}`;
+        
+        // 渲染結果
+        renderResults(answersData);
+      } catch (err) {
+        console.error('載入問卷結果失敗:', err);
+        document.getElementById('resultsContainer').innerHTML = `<p class="error-message">載入問卷結果失敗: ${err.message}</p>`;
+      }
+    }
+
+    function renderResults(results) {
+      if (!surveyData || !surveyData.questions || !results) {
+        document.getElementById('resultsContainer').innerHTML = '<p class="error-message">無法顯示結果，數據不完整</p>';
+        return;
+      }
+      
+      const container = document.getElementById('resultsContainer');
+      container.innerHTML = '';
+      
+      // 檢查是否有回答數據
+      if (results.length === 0) {
+        container.innerHTML = '<div class="question-result"><p>目前還沒有人填寫此問卷</p></div>';
+        return;
+      }
+      
+      // 按題目分類顯示結果
+      surveyData.questions.forEach((question, index) => {
+        // 找到對應的結果數據
+        const result = results.find(r => r.questionId === question.id);
+        
+        const questionDiv = document.createElement('div');
+        questionDiv.className = 'question-result';
+        questionDiv.innerHTML = `
+          <h3>問題 ${index + 1}: ${question.text}</h3>
+        `;
+        
+        // 如果沒有此問題的回答數據，顯示提示
+        if (!result) {
+          questionDiv.innerHTML += `<p>此問題尚未有人回答</p>`;
+          container.appendChild(questionDiv);
+          return;
+        }
+        
+        // 為不同題型創建不同的結果顯示
+        if (question.type === 'single' || question.type === 'multiple' || question.type === 'dropdown') {
+          // 創建圖表容器
+          const chartContainer = document.createElement('div');
+          chartContainer.className = 'chart-container';
+          chartContainer.innerHTML = `<canvas id="chart-${question.id}"></canvas>`;
+          questionDiv.appendChild(chartContainer);
+          
+          // 添加結果表格
+          const tableDiv = document.createElement('div');
+          tableDiv.innerHTML = `
+            <table class="result-table">
+              <thead>
+                <tr>
+                  <th>選項</th>
+                  <th>回答數</th>
+                  <th>百分比</th>
+                </tr>
+              </thead>
+              <tbody id="table-${question.id}">
+              </tbody>
+            </table>
+          `;
+          questionDiv.appendChild(tableDiv);
+          
+          // 創建圖表
+          createChart(question, result);
+        } else {
+          // 文本類型的回答
+          questionDiv.innerHTML += `<p>此題型的回答需要手動分析</p>`;
+          
+          // 如果有選項數據，顯示原始回答
+          if (result.options && result.options.length > 0) {
+            questionDiv.innerHTML += `
+              <div class="text-answers">
+                <h4>原始回答:</h4>
+                <ul>
+                  ${result.options.map(opt => `<li>${opt.option} (${opt.count}次)</li>`).join('')}
+                </ul>
+              </div>
+            `;
+          }
+        }
+        
+        container.appendChild(questionDiv);
+      });
+    }
+
+    function createChart(question, result) {
+      try {
+        // 從結果中提取選項和數據
+        const options = result.options || [];
+        const labels = options.map(opt => opt.option);
+        const data = options.map(opt => opt.count);
+        
+        // 計算總回答數
+        const total = data.reduce((sum, count) => sum + count, 0);
+        
+        // 更新表格
+        const tableBody = document.getElementById(`table-${question.id}`);
+        if (tableBody) {
+          options.forEach((option) => {
+            const percent = total > 0 ? ((option.count / total) * 100).toFixed(1) : '0.0';
+            tableBody.innerHTML += `
+              <tr>
+                <td>${option.option}</td>
+                <td>${option.count}</td>
+                <td>${percent}%</td>
+              </tr>
+            `;
+          });
+        }
+        
+        // 創建圖表 - 先檢查元素是否存在
+        const chartElement = document.getElementById(`chart-${question.id}`);
+        if (!chartElement) {
+          console.error(`找不到圖表元素: chart-${question.id}`);
+          return;
+        }
+        
+        const ctx = chartElement.getContext('2d');
+        new Chart(ctx, {
+          type: question.type === 'single' || question.type === 'dropdown' ? 'pie' : 'bar',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: '回答數',
+              data: data,
+              backgroundColor: [
+                'rgba(255, 99, 132, 0.7)',
+                'rgba(54, 162, 235, 0.7)',
+                'rgba(255, 206, 86, 0.7)',
+                'rgba(75, 192, 192, 0.7)',
+                'rgba(153, 102, 255, 0.7)',
+                'rgba(255, 159, 64, 0.7)',
+                'rgba(199, 199, 199, 0.7)',
+                'rgba(83, 102, 255, 0.7)',
+                'rgba(40, 159, 64, 0.7)',
+                'rgba(210, 199, 199, 0.7)'
+              ],
+              borderColor: [
+                'rgba(255, 99, 132, 1)',
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 206, 86, 1)',
+                'rgba(75, 192, 192, 1)',
+                'rgba(153, 102, 255, 1)',
+                'rgba(255, 159, 64, 1)',
+                'rgba(199, 199, 199, 1)',
+                'rgba(83, 102, 255, 1)',
+                'rgba(40, 159, 64, 1)',
+                'rgba(210, 199, 199, 1)'
+              ],
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'right',
+              },
+              title: {
+                display: true,
+                text: question.text
+              }
+            }
+          }
+        });
+      } catch (err) {
+        console.error(`創建圖表時出錯: ${err.message}`);
+      }
+    }
+
+    function exportCSV() {
+      if (!surveyData || !answersData) {
+        alert('無法匯出，數據不完整');
+        return;
+      }
+      
+      // 添加 BOM (Byte Order Mark) 以正確處理 UTF-8 編碼
+      let csvContent = "\uFEFF";
+      
+      // 添加標題行
+      csvContent += "問題,選項,回答數,百分比\n";
+      
+      // 添加數據行
+      surveyData.questions.forEach(question => {
+        const result = answersData.find(r => r.questionId === question.id);
+        
+        if (result && result.options && result.options.length > 0) {
+          const total = result.options.reduce((sum, opt) => sum + opt.count, 0);
+          
+          result.options.forEach(option => {
+            const percent = total > 0 ? ((option.count / total) * 100).toFixed(1) : '0.0';
+            csvContent += `"${question.text}","${option.option}",${option.count},${percent}%\n`;
+          });
+        }
+      });
+      
+      // 創建 Blob 對象，指定 UTF-8 編碼
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+      
+      // 創建下載連結
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `survey_results_${surveyId}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    // 頁面載入時執行
+    document.addEventListener('DOMContentLoaded', loadSurveyDetails);
+  </script>
+</body>
+</html>

@@ -1,43 +1,216 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
-    <meta
-      name="description"
-      content="Web site created using create-react-app"
-    />
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
-    <!--
-      manifest.json provides metadata used when your web app is installed on a
-      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
-    -->
-    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-    <!--
-      Notice the use of %PUBLIC_URL% in the tags above.
-      It will be replaced with the URL of the `public` folder during the build.
-      Only files inside the `public` folder can be referenced from the HTML.
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登入/註冊 - 學術問卷系統</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=Noto+Serif:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="academic-survey.css">
+  <style>
+    .auth-container {
+      max-width: 500px;
+      margin: 50px auto;
+      padding: 30px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .auth-tabs {
+      display: flex;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .auth-tab {
+      padding: 10px 20px;
+      cursor: pointer;
+      font-weight: bold;
+      border-bottom: 3px solid transparent;
+    }
+    
+    .auth-tab.active {
+      color: var(--secondary-color);
+      border-bottom-color: var(--secondary-color);
+    }
+    
+    .auth-form {
+      display: none;
+    }
+    
+    .auth-form.active {
+      display: block;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+    }
+    
+    .btn-auth {
+      width: 100%;
+      padding: 12px;
+      background-color: var(--secondary-color);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+    }
+    
+    .btn-auth:hover {
+      background-color: #2980b9;
+    }
+    
+    .system-title {
+      text-align: center;
+      margin-bottom: 30px;
+      color: var(--primary-color);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <div class="logo">學術問卷系統</div>
+    </div>
+  </header>
 
-      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
-      work correctly both with client-side routing and a non-root public URL.
-      Learn how to configure a non-root public URL by running `npm run build`.
-    -->
-    <title>React App</title>
-  </head>
-  <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
-    <!--
-      This HTML file is a template.
-      If you open it directly in the browser, you will see an empty page.
+  <div class="container">
+    <div class="auth-container">
+      <h1 class="system-title">學術問卷系統</h1>
+      
+      <div class="auth-tabs">
+        <div class="auth-tab active" onclick="switchTab('login')">登入</div>
+        <div class="auth-tab" onclick="switchTab('register')">註冊</div>
+      </div>
+      
+      <div id="loginForm" class="auth-form active">
+        <div class="form-group">
+          <label for="loginEmail">電子郵件</label>
+          <input type="email" id="loginEmail" placeholder="請輸入您的電子郵件" required>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">密碼</label>
+          <input type="password" id="loginPassword" placeholder="請輸入您的密碼" required>
+        </div>
+        <button type="button" class="btn-auth" onclick="login()">登入</button>
+        <div style="text-align: center; margin-top: 15px;">
+          <a href="forgot-password.html" style="color: var(--secondary-color); text-decoration: none;">忘記密碼？</a>
+        </div>
+      </div>
 
-      You can add webfonts, meta tags, or analytics to this file.
-      The build step will place the bundled scripts into the <body> tag.
+      <div id="registerForm" class="auth-form">
+        <div class="form-group">
+          <label for="registerEmail">電子郵件</label>
+          <input type="email" id="registerEmail" placeholder="請輸入您的電子郵件" required>
+        </div>
+        <div class="form-group">
+          <label for="registerPassword">密碼</label>
+          <input type="password" id="registerPassword" placeholder="請設定您的密碼" required>
+        </div>
+        <button type="button" class="btn-auth" onclick="register()">註冊</button>
+      </div>
+    </div>
+  </div>
 
-      To begin the development, run `npm start` or `yarn start`.
-      To create a production bundle, use `npm run build` or `yarn build`.
-    -->
-  </body>
+  <footer>
+    <p>&copy; 2023 學術問卷系統 - 為碩博士生研究提供支持</p>
+  </footer>
+
+  <!-- 隱藏的 root 元素，用於捕獲 React 錯誤 -->
+  <div id="root" style="display: none;"></div>
+
+  <script>
+    function switchTab(tab) {
+      // 移除所有 tab 的 active 類
+      document.querySelectorAll('.auth-tab').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.auth-form').forEach(el => el.classList.remove('active'));
+      
+      // 添加 active 類到選中的 tab
+      document.querySelector(`.auth-tab:nth-child(${tab === 'login' ? 1 : 2})`).classList.add('active');
+      document.getElementById(`${tab}Form`).classList.add('active');
+    }
+    
+    async function login() {
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+    
+      try {
+        const res = await fetch('http://localhost:5000/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ email, password })
+        });
+    
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem('token', data.token);
+          alert('登入成功！');
+          window.location.href = 'dashboard.html';
+        } else {
+          alert(`登入失敗：${data.error || '未知錯誤'}`);
+        }
+      } catch (err) {
+        console.error('登入請求失敗:', err);
+        alert('伺服器錯誤，請稍後再試');
+      }
+    }
+
+    async function register() {
+      const email = document.getElementById('registerEmail').value;
+      const password = document.getElementById('registerPassword').value;
+      
+      try {
+        const res = await fetch('http://localhost:5000/api/auth/register', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ email, password })
+        });
+        
+        const data = await res.json();
+        if (res.ok) {
+          alert('註冊成功！請登入');
+          switchTab('login');
+        } else {
+          alert(`註冊失敗：${data.error || '未知錯誤'}`);
+        }
+      } catch (err) {
+        console.error('註冊請求失敗:', err);
+        alert('伺服器錯誤，請稍後再試');
+      }
+    };
+
+    // 確保 DOM 完全載入後才執行 React 初始化
+    document.addEventListener('DOMContentLoaded', function() {
+      // 檢查是否有 React 相關錯誤
+      window.addEventListener('error', function(e) {
+        if (e.message && e.message.includes('Target container is not a DOM element')) {
+          console.log('捕獲到 React 錯誤，但已處理');
+          e.preventDefault();
+          return false;
+        }
+      });
+    });
+  </script>
+</body>
 </html>

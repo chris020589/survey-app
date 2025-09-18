@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>填寫問卷 - 學術問卷系統</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=Noto+Serif:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="academic-survey.css">
+  <style>
+    :root {
+      --primary-color: #2c3e50;
+      --secondary-color: #3498db;
+      --accent-color: #e74c3c;
+      --background-color: #f5f7fa;
+      --text-color: #333;
+      --border-color: #ddd;
+      --success-color: #27ae60;
+      --warning-color: #f39c12;
+      --error-color: #c0392b;
+      --font-main: 'Noto Sans', 'Segoe UI', Roboto, Arial, sans-serif;
+      --font-heading: 'Noto Serif', Georgia, 'Times New Roman', serif;
+    }
+    
+    body {
+      font-family: var(--font-main);
+      background-color: var(--background-color);
+      color: var(--text-color);
+      line-height: 1.6;
+      padding: 0;
+      margin: 0;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    header {
+      background-color: var(--primary-color);
+      color: white;
+      padding: 1rem 0;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+    }
+    
+    .header-content {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .logo {
+      font-family: var(--font-heading);
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+    
+    h1, h2, h3 {
+      font-family: var(--font-heading);
+      color: var(--primary-color);
+    }
+    
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    h2 {
+      font-size: 1.8rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .survey-header {
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .survey-description {
+      font-size: 1.1rem;
+      color: #555;
+      line-height: 1.6;
+    }
+    
+    .question {
+      background-color: white;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 25px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    
+    .question h3 {
+      margin-top: 0;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eee;
+      color: var(--primary-color);
+    }
+    
+    .required {
+      color: var(--accent-color);
+      margin-left: 3px;
+    }
+    
+    .answer-container {
+      margin-top: 15px;
+    }
+    
+    .answer-option {
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+    }
+    
+    .answer-option input[type="radio"],
+    .answer-option input[type="checkbox"] {
+      margin-right: 10px;
+    }
+    
+    input[type="text"],
+    input[type="email"],
+    input[type="number"],
+    input[type="date"],
+    input[type="time"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-family: var(--font-main);
+      margin-bottom: 5px;
+    }
+    
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--secondary-color);
+      box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
+    }
+    
+    button {
+      background-color: var(--secondary-color);
+      color: white;
+      border: none;
+      padding: 12px 25px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: var(--font-main);
+      font-size: 1rem;
+      font-weight: bold;
+      margin-top: 20px;
+      transition: background-color 0.3s;
+    }
+    
+    button:hover {
+      background-color: #2980b9;
+    }
+    
+    .validation-info {
+      font-size: 0.9em;
+      color: #666;
+      margin-top: 5px;
+      font-style: italic;
+      background-color: #f0f0f0;
+      padding: 8px;
+      border-radius: 4px;
+      border-left: 3px solid var(--secondary-color);
+    }
+    
+    .question-image {
+      max-width: 100%;
+      margin-bottom: 15px;
+      border-radius: 4px;
+    }
+    
+    footer {
+      background-color: var(--primary-color);
+      color: white;
+      text-align: center;
+      padding: 20px 0;
+      margin-top: 40px;
+    }
+    
+    .multiple-choice-container {
+      margin-top: 10px;
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        padding: 15px;
+      }
+      
+      .question {
+        padding: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <div class="logo">學術問卷系統</div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="survey-header">
+      <h1>填寫問卷</h1>
+      <h2 id="surveyTitle">載入中...</h2>
+      <p id="surveyDescription" class="survey-description"></p>
+    </div>
+    
+    <div id="questionsContainer"></div>
+    
+    <button type="button" id="submitButton" onclick="submitAnswers()">提交答案</button>
+  </div>
+
+  <footer>
+    <p>&copy; 2023 學術問卷系統 - 為碩博士生研究提供支持</p>
+  </footer>
+
+  <script>
+    const API_URL = 'http://localhost:5000/api/surveys';
+    let surveyData = null;
+    
+    // 頁面載入時執行
+    document.addEventListener('DOMContentLoaded', async function() {
+      // 從 URL 獲取問卷 ID
+      const urlParams = new URLSearchParams(window.location.search);
+      const surveyId = urlParams.get('id');
+  
+      if (surveyId) {
+        await loadSurvey(surveyId);
+      } else {
+        alert('未提供問卷 ID');
+      }
+    });  
+
+    // 加載問卷數據
+    async function loadSurvey(surveyId) {
+      try {
+        // 嘗試獲取公開問卷
+        const res = await fetch(`${API_URL}/public/${surveyId}`);
+    
+        if (!res.ok) {
+          throw new Error('無法獲取問卷數據');
+        }
+    
+        const survey = await res.json();
+        surveyData = survey;
+    
+        // 渲染問卷
+        document.getElementById('surveyTitle').textContent = survey.title;
+        document.getElementById('surveyDescription').textContent = survey.description;
+    
+        // 渲染問題
+        renderQuestions(survey.questions);
+      } catch (err) {
+        console.error('加載問卷失敗:', err);
+        document.getElementById('surveyTitle').textContent = '無法載入問卷';
+        document.getElementById('surveyDescription').textContent = '可能問卷不存在或未公開';
+        document.getElementById('submitButton').style.display = 'none';
+      }
+    }
+    
+    // 渲染問題
+    function renderQuestions(questions) {
+      const container = document.getElementById('questionsContainer');
+      container.innerHTML = '';
+  
+      questions.forEach((q, index) => {
+        const questionHtml = `
+          <div class="question" data-id="${q.id}" data-type="${q.type}">
+            <h3>${index + 1}. ${q.text} ${q.required ? '<span class="required">*</span>' : ''}</h3>
+            ${q.image ? `<img src="${q.image}" alt="題目圖片" class="question-image">` : ''}
+            <div class="answer-container">
+              ${renderAnswerInput(q)}
+            </div>
+          </div>
+        `;
+        container.innerHTML += questionHtml;
+      });
+    }
+
+    // 渲染答案輸入框
+    function renderAnswerInput(question) {
+      switch(question.type) {
+        case 'single':
+          return question.options.map((opt, idx) => `
+            <div class="answer-option">
+              <input type="radio" id="${question.id}_${idx}" name="${question.id}" value="${opt}" ${question.required ? 'required' : ''}>
+              <label for="${question.id}_${idx}">${opt}</label>
+            </div>
+          `).join('');
+          
+        case 'multiple':
+          const maxChoicesAttr = question.validation?.maxChoices ? 
+            `data-max-choices="${question.validation.maxChoices}"` : '';
+          const maxChoicesInfo = question.validation?.maxChoices ? 
+            `<p class="validation-info">最多可選擇 ${question.validation.maxChoices} 項</p>` : '';
+          
+          return `
+            <div class="multiple-choice-container" ${maxChoicesAttr}>
+              ${maxChoicesInfo}
+              ${question.options.map((opt, idx) => `
+                <div class="answer-option">
+                  <input type="checkbox" id="${question.id}_${idx}" name="${question.id}" value="${opt}" 
+                    onchange="checkMaxChoices(this)">
+                  <label for="${question.id}_${idx}">${opt}</label>
+                </div>
+              `).join('')}
+            </div>
+          `;
+          
+        case 'dropdown':
+          return `
+            <select id="${question.id}" name="${question.id}" ${question.required ? 'required' : ''}>
+              <option value="">請選擇...</option>
+              ${question.options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+            </select>
+          `;
+          
+        case 'text':
+          return `
+            <input type="text" id="${question.id}" name="${question.id}" 
+              ${question.validation?.minLength ? `minlength="${question.validation.minLength}"` : ''} 
+              ${question.validation?.maxLength ? `maxlength="${question.validation.maxLength}"` : ''} 
+              ${question.required ? 'required' : ''}>
+            ${question.validation?.maxLength ? 
+              `<p class="validation-info">字數限制: ${question.validation?.minLength || '0'} - ${question.validation.maxLength} 字</p>` : ''}
+          `;
+          
+        case 'textarea':
+          return `
+            <textarea id="${question.id}" name="${question.id}" rows="4" 
+              ${question.validation?.minLength ? `minlength="${question.validation.minLength}"` : ''} 
+              ${question.validation?.maxLength ? `maxlength="${question.validation.maxLength}"` : ''} 
+              ${question.required ? 'required' : ''}></textarea>
+            ${question.validation?.maxLength ? 
+              `<p class="validation-info">字數限制: ${question.validation?.minLength || '0'} - ${question.validation.maxLength} 字</p>` : ''}
+          `;
+          
+        case 'date':
+          return `<input type="date" id="${question.id}" name="${question.id}" ${question.required ? 'required' : ''}>`;
+          
+        case 'time':
+          return `<input type="time" id="${question.id}" name="${question.id}" ${question.required ? 'required' : ''}>`;
+          
+        case 'number':
+          return `
+            <input type="number" id="${question.id}" name="${question.id}" 
+              ${question.validation?.minValue ? `min="${question.validation.minValue}"` : ''} 
+              ${question.validation?.maxValue ? `max="${question.validation.maxValue}"` : ''} 
+              ${question.required ? 'required' : ''}>
+            ${question.validation?.minValue && question.validation?.maxValue ? 
+              `<p class="validation-info">數字範圍限制: ${question.validation.minValue} - ${question.validation.maxValue}</p>` : 
+              question.validation?.minValue ? 
+              `<p class="validation-info">最小值: ${question.validation.minValue}</p>` : 
+              question.validation?.maxValue ? 
+              `<p class="validation-info">最大值: ${question.validation.maxValue}</p>` : ''}
+          `;
+          
+        case 'email':
+          return `<input type="email" id="${question.id}" name="${question.id}" ${question.required ? 'required' : ''}>`;
+          
+        case 'file':
+          return `<input type="file" id="${question.id}" name="${question.id}" ${question.required ? 'required' : ''}>`;
+          
+        default:
+          return `<input type="text" id="${question.id}" name="${question.id}" ${question.required ? 'required' : ''}>`;
+      }
+    }
+
+    // 檢查多選題最多選擇數量
+    function checkMaxChoices(checkbox) {
+      const container = checkbox.closest('.multiple-choice-container');
+      const maxChoices = parseInt(container.dataset.maxChoices);
+      if (!maxChoices) return;
+      
+      const checked = container.querySelectorAll('input[type="checkbox"]:checked');
+      if (checked.length > maxChoices) {
+        checkbox.checked = false;
+        alert('最多只能選擇 ' + maxChoices + ' 項');
+      }
+    }
+
+    // 驗證文本長度
+    function validateTextLength(input, minLength, maxLength) {
+      const value = input.value;
+      if (minLength && value.length < minLength) {
+        alert(`文字長度不得少於 ${minLength} 個字元`);
+        return false;
+      }
+      if (maxLength && value.length > maxLength) {
+        alert(`文字長度不得超過 ${maxLength} 個字元`);
+        return false;
+      }
+      return true;
+    }
+    
+    // 驗證數字範圍
+    function validateNumberRange(input, minValue, maxValue) {
+      const value = parseFloat(input.value);
+      if (minValue !== null && value < minValue) {
+        alert(`數值不得小於 ${minValue}`);
+        return false;
+      }
+      if (maxValue !== null && value > maxValue) {
+        alert(`數值不得大於 ${maxValue}`);
+        return false;
+      }
+      return true;
+    }
+    
+    // 驗證電子郵件格式
+    function validateEmail(input) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(input.value)) {
+        alert('請輸入有效的電子郵件地址');
+        return false;
+      }
+      return true;
+    }
+
+    // 提交答案
+    async function submitAnswers() {
+      try {
+        // 檢查必填項
+        const requiredQuestions = document.querySelectorAll('.question .required');
+        let allFilled = true;
+        let allValid = true;
+        
+        // 檢查所有問題的有效性
+        const allQuestions = document.querySelectorAll('.question');
+        allQuestions.forEach(questionDiv => {
+          const questionId = questionDiv.dataset.id;
+          const questionType = questionDiv.dataset.type;
+          const input = questionDiv.querySelector(`#${questionId}`);
+          
+          // 找到對應的問題定義
+          const questionDef = surveyData.questions.find(q => q.id === questionId);
+          if (!questionDef) return;
+          
+          // 檢查必填項
+          if (questionDef.required) {
+            if (questionType === 'single') {
+              const radios = questionDiv.querySelectorAll(`input[name="${questionId}"]:checked`);
+              if (radios.length === 0) allFilled = false;
+            } else if (questionType === 'multiple') {
+              const checkboxes = questionDiv.querySelectorAll(`input[name="${questionId}"]:checked`);
+              if (checkboxes.length === 0) allFilled = false;
+            } else if (input && !input.value) {
+              allFilled = false;
+            }
+          }
+          
+          // 檢查驗證規則
+          if (input && input.value) {
+            if (questionType === 'text' || questionType === 'textarea') {
+              const minLength = questionDef.validation?.minLength ? parseInt(questionDef.validation.minLength) : null;
+              const maxLength = questionDef.validation?.maxLength ? parseInt(questionDef.validation.maxLength) : null;
+              if (minLength || maxLength) {
+                if (!validateTextLength(input, minLength, maxLength)) {
+                  allValid = false;
+                }
+              }
+            } else if (questionType === 'number') {
+              const minValue = questionDef.validation?.minValue ? parseFloat(questionDef.validation.minValue) : null;
+              const maxValue = questionDef.validation?.maxValue ? parseFloat(questionDef.validation.maxValue) : null;
+              if (minValue !== null || maxValue !== null) {
+                if (!validateNumberRange(input, minValue, maxValue)) {
+                  allValid = false;
+                }
+              }
+            } else if (questionType === 'email') {
+              if (!validateEmail(input)) {
+                allValid = false;
+              }
+            }
+          }
+        });
+        
+        if (!allFilled) {
+          alert('請填寫所有必填項目');
+          return;
+        }
+        
+        if (!allValid) {
+          return; // 已經在各驗證函數中顯示了錯誤訊息
+        }
+        
+        // 收集答案
+        const answers = [];
+        const questions = document.querySelectorAll('.question');
+        
+        questions.forEach(questionDiv => {
+          const questionId = questionDiv.dataset.id;
+          const questionType = questionDiv.dataset.type;
+          let answer;
+          
+          // 根據不同題型獲取答案
+          if (questionType === 'single') {
+            const radio = questionDiv.querySelector(`input[name="${questionId}"]:checked`);
+            answer = radio ? radio.value : null;
+          } else if (questionType === 'multiple') {
+            const checkboxes = questionDiv.querySelectorAll(`input[name="${questionId}"]:checked`);
+            answer = Array.from(checkboxes).map(cb => cb.value);
+          } else if (questionType === 'dropdown' || questionType === 'text' || questionType === 'textarea' || 
+                    questionType === 'date' || questionType === 'time' || questionType === 'number' || 
+                    questionType === 'email') {
+            const input = questionDiv.querySelector(`#${questionId}`);
+            answer = input ? input.value : null;
+          }
+          
+          if (answer !== null && answer !== undefined) {
+            answers.push({
+              questionId,
+              answer
+            });
+          }
+        });
+        
+        // 獲取問卷ID
+        const urlParams = new URLSearchParams(window.location.search);
+        const surveyId = urlParams.get('id');
+        
+        // 提交答案
+        const res = await fetch(`${API_URL}/${surveyId}/submit-answers`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            answers
+          })
+        });
+        
+        if (res.ok) {
+          alert('感謝您的填寫！');
+          // 清空表單或跳轉到感謝頁面
+          document.getElementById('questionsContainer').innerHTML = '<div class="question"><h2>問卷已成功提交</h2><p>感謝您的參與！</p></div>';
+          document.getElementById('submitButton').style.display = 'none';
+        } else {
+          const error = await res.json();
+          alert(`提交失敗：${error.error || '未知錯誤'}`);
+        }
+      } catch (err) {
+        console.error('提交答案失敗:', err);
+        alert('提交失敗，請稍後再試');
+      }
+    }
+  </script>
+</body>
+</html>

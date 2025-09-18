@@ -1,0 +1,20 @@
+{
+    "_id": "問卷ID",
+    "title": "問卷標題",
+    "description": "這是一份調查問卷",
+    "questions": [
+      {
+        "questionText": "你的性別？",
+        "type": "single", 
+        "options": ["男", "女", "其他"]
+      },
+      {
+        "questionText": "請輸入你的年齡",
+        "type": "text",  
+        "options": []
+      }
+    ],
+    "createdAt": "2025-05-02T00:00:00Z",
+    "updatedAt": "2025-05-02T00:00:00Z"
+  }
+  
